@@ -73,3 +73,6 @@ leak:setProtocolMetadataWithSignature
 leak:ensureAuxServiceAwareOfHostApp
 leak:auxiliaryProxyFor
 leak:NSXPCInterface
+leak:__CPSNoticeNewConnection_block_invoke
+leak:_MyCFXPCCreateCFObjectFromXPCObject
+leak:WMClientWindowManager
