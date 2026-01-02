@@ -12,9 +12,14 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSION_
   message(FATAL_ERROR "Clang is outdated: ${CMAKE_CXX_COMPILER_VERSION}")
 endif()
 
-if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_COMPILER MATCHES "/opt/homebrew")
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   # default Apple Clang often has an older stdlib
-  add_link_options(-L/opt/homebrew/opt/llvm/lib/c++ -Wl,-rpath,/opt/homebrew/opt/llvm/lib/c++)
+  get_filename_component(COMPILER_BIN_DIR ${CMAKE_CXX_COMPILER} DIRECTORY)
+  get_filename_component(COMPILER_ROOT_DIR ${COMPILER_BIN_DIR} DIRECTORY)
+  set(LIBCXX_DIR "${COMPILER_ROOT_DIR}/lib/c++")
+  if(EXISTS "${LIBCXX_DIR}")
+    add_link_options(-L${LIBCXX_DIR} -Wl,-rpath,${LIBCXX_DIR})
+  endif()
 endif()
 
 #
