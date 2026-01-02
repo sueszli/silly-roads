@@ -113,13 +113,20 @@ set(gtest_force_shared_crt
     ON
     CACHE BOOL "" FORCE
 )
-FetchContent_MakeAvailable(googletest)
 # disable warning for google test
 foreach(t gtest gtest_main gmock gmock_main)
   if(TARGET ${t})
     target_compile_options(${t} PUBLIC -Wno-character-conversion)
   endif()
 endforeach()
+FetchContent_MakeAvailable(googletest)
+
+FetchContent_Declare(raylib URL https://github.com/raysan5/raylib/archive/refs/tags/5.5.tar.gz)
+set(BUILD_EXAMPLES
+    OFF
+    CACHE BOOL "" FORCE
+)
+FetchContent_MakeAvailable(raylib)
 
 #
 # sources
