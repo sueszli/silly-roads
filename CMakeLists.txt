@@ -114,7 +114,7 @@ FetchContent_MakeAvailable(googletest)
 # disable character conversion warnings for google test
 foreach(t gtest gtest_main gmock gmock_main)
   if(TARGET ${t})
-    target_compile_options(${t} PRIVATE -Wno-character-conversion)
+    target_compile_options(${t} PUBLIC -Wno-character-conversion)
   endif()
 endforeach()
 
@@ -142,13 +142,9 @@ if(BUILD_TESTS)
     get_filename_component(TEST_NAME ${TEST_FILE} NAME_WE)
     set(TEST_SOURCE "test/${TEST_NAME}.cpp")
     set(TEST_EXECUTABLE "${TEST_NAME}_binary")
-
     add_executable(${TEST_EXECUTABLE} ${TEST_SOURCE})
     target_link_libraries(${TEST_EXECUTABLE} PRIVATE gtest_main lib)
     target_include_directories(${TEST_EXECUTABLE} PRIVATE src)
-
-    target_compile_options(${TEST_EXECUTABLE} PRIVATE -Wno-character-conversion)
-
     include(GoogleTest)
     gtest_discover_tests(${TEST_EXECUTABLE})
   endforeach()

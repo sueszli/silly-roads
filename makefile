@@ -10,16 +10,16 @@ RELEASE_BUILD_DIR := /tmp/release-build
 run: lint
 	cmake -B $(BUILD_DIR) -S . -DCMAKE_CXX_COMPILER=$(CLANG_PATH)
 	cmake --build $(BUILD_DIR) -j$(NCPU)
-	ASAN_OPTIONS=detect_leaks=1 LSAN_OPTIONS=suppressions=$(PWD)/suppr.txt $(BUILD_DIR)/binary
+	ASAN_OPTIONS=detect_leaks=1 LSAN_OPTIONS=suppressions=$(PWD)/suppressions-asan.txt $(BUILD_DIR)/binary
 
 .PHONY: run-release
-run-release:
+run-release: lint
 	cmake -B $(RELEASE_BUILD_DIR) -S . -DCMAKE_CXX_COMPILER=$(CLANG_PATH) -DCMAKE_BUILD_TYPE=Release -DDISABLE_ASAN=ON -DDISABLE_UBSAN=ON -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON
 	cmake --build $(RELEASE_BUILD_DIR) -j$(NCPU)
 	$(RELEASE_BUILD_DIR)/binary
 
-.PHONY: leaks
-leaks: lint
+.PHONY: run-leaks
+run-leaks: lint
 	cmake -B $(LEAKS_BUILD_DIR) -S . -DDISABLE_ASAN=ON
 	cmake --build $(LEAKS_BUILD_DIR) -j$(NCPU)
 	codesign -s - -f --entitlements entitlements.plist $(LEAKS_BUILD_DIR)/binary
@@ -31,17 +31,13 @@ test: lint
 	cmake --build $(TEST_BUILD_DIR) -j$(NCPU)
 	cd $(TEST_BUILD_DIR) && ctest --output-on-failure
 
-.PHONY: clean
-clean:
-	rm -rf $(BUILD_DIR) $(LEAKS_BUILD_DIR) $(TEST_BUILD_DIR) $(RELEASE_BUILD_DIR)
-
 #
 # utils
 #
 
 .PHONY: lint
 lint:
-	cppcheck --enable=all --std=c++23 --language=c++ --suppressions-list=cppcheck-suppressions.txt --check-level=exhaustive --inconclusive --inline-suppr -I src/ src/
+	cppcheck --enable=all --std=c++23 --language=c++ --suppressions-list=suppressions-cppcheck.txt --check-level=exhaustive --inconclusive --inline-suppr -I src/ src/
 
 .PHONY: fmt
 fmt:
