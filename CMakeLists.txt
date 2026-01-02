@@ -103,15 +103,13 @@ endif()
 include(FetchContent)
 
 FetchContent_Declare(googletest URL https://github.com/google/googletest/archive/refs/tags/v1.17.0.zip)
-
 # in windows: prevent overriding the parent project's compiler/linker settings
 set(gtest_force_shared_crt
     ON
     CACHE BOOL "" FORCE
 )
 FetchContent_MakeAvailable(googletest)
-
-# disable character conversion warnings for google test
+# disable warning for google test
 foreach(t gtest gtest_main gmock gmock_main)
   if(TARGET ${t})
     target_compile_options(${t} PUBLIC -Wno-character-conversion)
