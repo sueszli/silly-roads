@@ -1,24 +1,43 @@
+CLANG_PATH := /opt/homebrew/opt/llvm/bin/clang++
+NCPU := $(shell sysctl -n hw.ncpu)
+
+BUILD_DIR := /tmp/build
+LEAKS_BUILD_DIR := /tmp/leaks-build
+TEST_BUILD_DIR := /tmp/test-build
+RELEASE_BUILD_DIR := /tmp/release-build
+
 .PHONY: run
 run: lint
-	mkdir -p /tmp/build && cd /tmp/build && cmake -DCMAKE_CXX_COMPILER=/opt/homebrew/opt/llvm/bin/clang++ $(PWD) && cmake --build . -j$$(sysctl -n hw.ncpu) && cd $(PWD) && ASAN_OPTIONS=detect_leaks=1 LSAN_OPTIONS=suppressions=$(PWD)/suppr.txt /tmp/build/binary
-
-.PHONY: leaks
-leaks: lint
-	rm -rf /tmp/leaks-build && mkdir -p /tmp/leaks-build && cd /tmp/leaks-build && cmake -DDISABLE_ASAN=ON $(PWD) && cmake --build . -j$$(sysctl -n hw.ncpu)
-	codesign -s - -f --entitlements entitlements.plist /tmp/leaks-build/binary
-	cd $(PWD) && leaks --atExit --list --groupByType -- /tmp/leaks-build/binary
-
-.PHONY: test
-test: lint
-	rm -rf /tmp/test-build && mkdir -p /tmp/test-build && cd /tmp/test-build && cmake -DBUILD_TESTS=ON $(PWD) && cmake --build . -j$$(sysctl -n hw.ncpu) && ctest --output-on-failure
+	cmake -B $(BUILD_DIR) -S . -DCMAKE_CXX_COMPILER=$(CLANG_PATH)
+	cmake --build $(BUILD_DIR) -j$(NCPU)
+	ASAN_OPTIONS=detect_leaks=1 LSAN_OPTIONS=suppressions=$(PWD)/suppr.txt $(BUILD_DIR)/binary
 
 .PHONY: run-release
 run-release:
-	rm -rf /tmp/release-build && mkdir -p /tmp/release-build && cd /tmp/release-build && cmake -DCMAKE_CXX_COMPILER=/opt/homebrew/opt/llvm/bin/clang++ -DCMAKE_BUILD_TYPE=Release -DDISABLE_ASAN=ON -DDISABLE_UBSAN=ON -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON $(PWD) && cmake --build . -j$$(sysctl -n hw.ncpu) && cd $(PWD) && /tmp/release-build/binary
+	cmake -B $(RELEASE_BUILD_DIR) -S . -DCMAKE_CXX_COMPILER=$(CLANG_PATH) -DCMAKE_BUILD_TYPE=Release -DDISABLE_ASAN=ON -DDISABLE_UBSAN=ON -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON
+	cmake --build $(RELEASE_BUILD_DIR) -j$(NCPU)
+	$(RELEASE_BUILD_DIR)/binary
 
-# 
+.PHONY: leaks
+leaks: lint
+	cmake -B $(LEAKS_BUILD_DIR) -S . -DDISABLE_ASAN=ON
+	cmake --build $(LEAKS_BUILD_DIR) -j$(NCPU)
+	codesign -s - -f --entitlements entitlements.plist $(LEAKS_BUILD_DIR)/binary
+	leaks --atExit --list --groupByType -- $(LEAKS_BUILD_DIR)/binary
+
+.PHONY: test
+test: lint
+	cmake -B $(TEST_BUILD_DIR) -S . -DBUILD_TESTS=ON
+	cmake --build $(TEST_BUILD_DIR) -j$(NCPU)
+	cd $(TEST_BUILD_DIR) && ctest --output-on-failure
+
+.PHONY: clean
+clean:
+	rm -rf $(BUILD_DIR) $(LEAKS_BUILD_DIR) $(TEST_BUILD_DIR) $(RELEASE_BUILD_DIR)
+
+#
 # utils
-# 
+#
 
 .PHONY: lint
 lint:

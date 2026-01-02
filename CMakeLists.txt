@@ -12,6 +12,11 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSION_
   message(FATAL_ERROR "Clang is outdated: ${CMAKE_CXX_COMPILER_VERSION}")
 endif()
 
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_COMPILER MATCHES "/opt/homebrew")
+  message(STATUS "Using Homebrew LLVM: adding library paths")
+  add_link_options(-L/opt/homebrew/opt/llvm/lib/c++ -Wl,-rpath,/opt/homebrew/opt/llvm/lib/c++)
+endif()
+
 #
 # compiler hardening
 #
@@ -98,12 +103,20 @@ endif()
 include(FetchContent)
 
 FetchContent_Declare(googletest URL https://github.com/google/googletest/archive/refs/tags/v1.17.0.zip)
-# for windows: prevent overriding the parent project's compiler/linker settings
+
+# in windows: prevent overriding the parent project's compiler/linker settings
 set(gtest_force_shared_crt
     ON
     CACHE BOOL "" FORCE
 )
 FetchContent_MakeAvailable(googletest)
+
+# disable character conversion warnings for google test
+foreach(t gtest gtest_main gmock gmock_main)
+  if(TARGET ${t})
+    target_compile_options(${t} PRIVATE -Wno-character-conversion)
+  endif()
+endforeach()
 
 #
 # sources
@@ -133,6 +146,8 @@ if(BUILD_TESTS)
     add_executable(${TEST_EXECUTABLE} ${TEST_SOURCE})
     target_link_libraries(${TEST_EXECUTABLE} PRIVATE gtest_main lib)
     target_include_directories(${TEST_EXECUTABLE} PRIVATE src)
+
+    target_compile_options(${TEST_EXECUTABLE} PRIVATE -Wno-character-conversion)
 
     include(GoogleTest)
     gtest_discover_tests(${TEST_EXECUTABLE})
