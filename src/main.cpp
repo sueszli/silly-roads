@@ -10,8 +10,11 @@ int main() {
     InitWindow(800, 450, "raylib [core] example - basic window");
     SetTargetFPS(60);
 
+    int frames = 0;
     while (!WindowShouldClose())    // Detect window close button or ESC key
     {
+        frames++;
+        if (frames > 60) break;
         BeginDrawing();
         ClearBackground(RAYWHITE);
         DrawText("Congrats! You created your first window!", 190, 200, 20, LIGHTGRAY);
