@@ -1,17 +1,75 @@
 # LeakSanitizer suppressions for false positives from macOS system libraries.
 # Some patches were already merged upstream and have yet to be released in a stable Clang/LLVM version.
 
-leak:_fetchInitializingClassList
 # thread-local storage used by Objective-C runtime
 # - https://github.com/apple-oss-distributions/objc4/blob/f126469408dc82bd3f327217ae678fd0e6e3b37c/runtime/objc-initialize.mm#L287
 # - https://github.com/llvm/llvm-project/issues/115992
 # - https://github.com/google/sanitizers/wiki/AddressSanitizerLeakSanitizer#suppressions
 # - https://github.com/llvm/llvm-project/pull/117478
+leak:_fetchInitializingClassList
 
-leak:__Balloc_D2A
 # double to ASCII conversion library
+leak:__Balloc_D2A
 
+# GLFW rendering through Raylib
 leak:_glfwDestroyWindowCocoa
 leak:_glfwPollEventsCocoa
 leak:_glfwInitCocoa
-
+leak:_glfwCreateWindowCocoa
+leak:DrawOnePartImageWithOperation
+leak:create_colorsync_profile_sequence
+leak:CMMConvMatrixTemplate
+leak:NSKVOCopyPendingNotificationStack
+leak:_NSFastDrawString
+leak:CGColorConversionInfoIterateFunctionsWithCallbacks
+leak:GetColorspaceTransformsWithTransformWithCGColorConversionInfo
+leak:CreatePass_ColorSpaceTransformWithCGColorConversionInfo
+leak:CreatePass_ChunkyToPlanarWithCGColorConversionInfo
+leak:CreatePass_Premultiply
+leak:CreatePass_Unpremultiply
+leak:CMMMemMgr
+leak:AppleCMMInitializeTransform
+leak:RBSXPCMessageContext
+leak:RBSConnection
+leak:ColorSyncTransformCreate
+leak:ColorSyncMakeProfile
+leak:CGCMSConverterCreateCachedCGvImageConverter
+leak:vImageConverter_CreateWithCGColorConversionInfo
+leak:LSDatabaseContext
+leak:_LSContextInitCommon
+leak:TCGFontCache
+leak:TPerThreadLRUCache
+leak:UIIntelligenceSupport
+leak:CreateEventLoop
+leak:XTCopyFontWithName
+leak:NSXPCDecoder
+leak:CUIStructuredThemeStore
+leak:CUICatalog
+leak:TGlobalFontRegistry
+leak:TRequestCache
+leak:TDescriptorSource
+leak:TDescriptor
+leak:swift_slowAlloc
+leak:CGColorSyncTransformCacheGetRetained
+leak:CGColorConversionInfoCreateFromList
+leak:colorsync_transform_data_key_retain
+leak:conversion_params_data_key_retain
+leak:conversion_cache_get_retained_conversion_params
+leak:NSThemeFrame
+leak:CARequiresColorMatching
+leak:SLSMainConnectionID
+leak:CGSGetMainConnectionMachPort
+leak:dyld4::RuntimeState::notifyObjCInit
+leak:_NSEventThread
+leak:CGSPropertyListCreateWithSerializedBytes
+leak:expandCSIBitmapData
+leak:LSSharedMemoryPage::CopyForSessionID
+leak:dispatch_mig_server
+leak:SLSessionCopyCurrentDictionary
+leak:NSISLinearExpression
+leak:CUICopyCustomColorWithOptions
+leak:CFPrefsPlistSource
+leak:setProtocolMetadataWithSignature
+leak:ensureAuxServiceAwareOfHostApp
+leak:auxiliaryProxyFor
+leak:NSXPCInterface
