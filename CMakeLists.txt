@@ -32,7 +32,6 @@ endif()
 
 #
 # compiler hardening
-#
 # see: https://best.openssf.org/Compiler-Hardening-Guides/Compiler-Options-Hardening-Guide-for-C-and-C++
 #
 

@@ -10,3 +10,7 @@ leak:_fetchInitializingClassList
 
 leak:__Balloc_D2A
 # double to ASCII conversion library
+
+leak:_glfwDestroyWindowCocoa
+leak:_glfwPollEventsCocoa
+
