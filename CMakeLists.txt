@@ -1,14 +1,15 @@
 cmake_minimum_required(VERSION 3.27 FATAL_ERROR)
-project(defer LANGUAGES C)
+project(defer LANGUAGES CXX)
 
-set(CMAKE_C_STANDARD 23)
-set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
-if(CMAKE_C_COMPILER_ID MATCHES "GNU" AND CMAKE_C_COMPILER_VERSION VERSION_LESS 13.0.0)
-  message(FATAL_ERROR "GCC is outdated: ${CMAKE_C_COMPILER_VERSION}")
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 13.0.0)
+  message(FATAL_ERROR "GCC is outdated: ${CMAKE_CXX_COMPILER_VERSION}")
 endif()
-if(CMAKE_C_COMPILER_ID MATCHES "Clang" AND CMAKE_C_COMPILER_VERSION VERSION_LESS 16.0.0)
-  message(FATAL_ERROR "Clang is outdated: ${CMAKE_C_COMPILER_VERSION}")
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 16.0.0)
+  message(FATAL_ERROR "Clang is outdated: ${CMAKE_CXX_COMPILER_VERSION}")
 endif()
 
 #
@@ -27,6 +28,9 @@ add_compile_options(
   -Wsign-conversion
   -Wimplicit-fallthrough
   -Werror=format-security
+  -Wold-style-cast
+  -Wnon-virtual-dtor
+  -Woverloaded-virtual
   # more portable and explicit than -fhardened
   -U_FORTIFY_SOURCE
   -D_FORTIFY_SOURCE=3
@@ -60,11 +64,11 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   )
 endif()
 
-if(CMAKE_C_COMPILER_ID MATCHES "GNU")
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
   # add `-fzero-init-padding-bits=all` from gcc 15
   add_compile_options(-Wtrampolines -Wbidi-chars=any)
 endif()
-if(CMAKE_C_COMPILER_ID MATCHES "Clang")
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   # nop
 endif()
 
@@ -95,68 +99,44 @@ endif()
 #
 
 include(FetchContent)
-
-if(BUILD_TESTS)
-  FetchContent_Declare(
-    unity
-    GIT_REPOSITORY https://github.com/ThrowTheSwitch/Unity.git
-    GIT_TAG v2.6.1
-    GIT_SHALLOW TRUE
-  )
-
-  set(BUILD_TESTING
-      OFF
-      CACHE BOOL "" FORCE
-  )
-  set(BUILD_SHARED_LIBS
-      OFF
-      CACHE BOOL "" FORCE
-  )
-  set(UNITY_EXTENSION_FIXTURE
-      OFF
-      CACHE BOOL "" FORCE
-  )
-  set(UNITY_EXTENSION_MEMORY
-      OFF
-      CACHE BOOL "" FORCE
-  )
-  set(UNITY_BUILD_TESTS
-      OFF
-      CACHE BOOL "" FORCE
-  )
-
-  FetchContent_MakeAvailable(unity)
-endif()
+FetchContent_Declare(googletest URL https://github.com/google/googletest/archive/refs/tags/v1.17.0.zip)
+# For Windows: Prevent overriding the parent project's compiler/linker settings
+set(gtest_force_shared_crt
+    ON
+    CACHE BOOL "" FORCE
+)
+FetchContent_MakeAvailable(googletest)
 
 #
 # sources
 #
 
-file(GLOB_RECURSE SRCS src/*.c)
-list(FILTER SRCS EXCLUDE REGEX "src/main\\.c$")
+file(GLOB_RECURSE SRCS src/*.cpp)
+list(FILTER SRCS EXCLUDE REGEX "src/main\\.cpp$")
 add_library(lib ${SRCS})
 target_include_directories(lib PUBLIC src)
-add_executable(binary src/main.c)
+add_executable(binary src/main.cpp)
 target_link_libraries(binary PRIVATE lib)
 
 #
 # tests
 #
 
-file(GLOB_RECURSE TEST_FILES test/*.c)
+file(GLOB_RECURSE TEST_FILES test/*.cpp)
 
 if(BUILD_TESTS)
   enable_testing()
 
   foreach(TEST_FILE ${TEST_FILES})
     get_filename_component(TEST_NAME ${TEST_FILE} NAME_WE)
-    set(TEST_SOURCE "test/${TEST_NAME}.c")
+    set(TEST_SOURCE "test/${TEST_NAME}.cpp")
     set(TEST_EXECUTABLE "${TEST_NAME}_binary")
 
     add_executable(${TEST_EXECUTABLE} ${TEST_SOURCE})
-    target_link_libraries(${TEST_EXECUTABLE} PRIVATE unity lib)
-    target_include_directories(${TEST_EXECUTABLE} PRIVATE ${unity_SOURCE_DIR}/src)
+    target_link_libraries(${TEST_EXECUTABLE} PRIVATE gtest_main lib)
+    target_include_directories(${TEST_EXECUTABLE} PRIVATE src)
 
-    add_test(NAME ${TEST_NAME} COMMAND ${TEST_EXECUTABLE})
+    include(GoogleTest)
+    gtest_discover_tests(${TEST_EXECUTABLE})
   endforeach()
 endif()

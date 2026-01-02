@@ -1,3 +1,3 @@
 #pragma once
 
-void hello_from_lib(void);
+void hello_from_lib();

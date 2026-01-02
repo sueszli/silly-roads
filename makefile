@@ -1,6 +1,6 @@
 .PHONY: run
 run: lint
-	mkdir -p /tmp/build && cd /tmp/build && cmake -DCMAKE_C_COMPILER=/opt/homebrew/opt/llvm/bin/clang $(PWD) && cmake --build . -j$$(sysctl -n hw.ncpu) && cd $(PWD) && ASAN_OPTIONS=detect_leaks=1 LSAN_OPTIONS=suppressions=$(PWD)/suppr.txt /tmp/build/binary
+	mkdir -p /tmp/build && cd /tmp/build && cmake -DCMAKE_CXX_COMPILER=/opt/homebrew/opt/llvm/bin/clang++ $(PWD) && cmake --build . -j$$(sysctl -n hw.ncpu) && cd $(PWD) && ASAN_OPTIONS=detect_leaks=1 LSAN_OPTIONS=suppressions=$(PWD)/suppr.txt /tmp/build/binary
 
 .PHONY: leaks
 leaks: lint
@@ -14,7 +14,7 @@ test: lint
 
 .PHONY: run-release
 run-release:
-	rm -rf /tmp/release-build && mkdir -p /tmp/release-build && cd /tmp/release-build && cmake -DCMAKE_C_COMPILER=/opt/homebrew/opt/llvm/bin/clang -DCMAKE_BUILD_TYPE=Release -DDISABLE_ASAN=ON -DDISABLE_UBSAN=ON -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON $(PWD) && cmake --build . -j$$(sysctl -n hw.ncpu) && cd $(PWD) && /tmp/release-build/binary
+	rm -rf /tmp/release-build && mkdir -p /tmp/release-build && cd /tmp/release-build && cmake -DCMAKE_CXX_COMPILER=/opt/homebrew/opt/llvm/bin/clang++ -DCMAKE_BUILD_TYPE=Release -DDISABLE_ASAN=ON -DDISABLE_UBSAN=ON -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON $(PWD) && cmake --build . -j$$(sysctl -n hw.ncpu) && cd $(PWD) && /tmp/release-build/binary
 
 # 
 # utils
@@ -22,9 +22,9 @@ run-release:
 
 .PHONY: lint
 lint:
-	cppcheck --enable=all --std=c23 --language=c --suppressions-list=cppcheck-suppressions.txt --check-level=exhaustive --inconclusive --inline-suppr -I src/ src/
+	cppcheck --enable=all --std=c++23 --language=c++ --suppressions-list=cppcheck-suppressions.txt --check-level=exhaustive --inconclusive --inline-suppr -I src/ src/
 
 .PHONY: fmt
 fmt:
 	uvx --from cmakelang cmake-format --dangle-parens --line-width 500 -i CMakeLists.txt
-	find . -name "*.c" -o -name "*.h" | xargs clang-format -i
+	find . -name "*.cpp" -o -name "*.h" | xargs clang-format -i
