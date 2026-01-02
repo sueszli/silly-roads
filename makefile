@@ -38,4 +38,4 @@ lint:
 .PHONY: fmt
 fmt:
 	uvx --from cmakelang cmake-format --dangle-parens --line-width 500 -i CMakeLists.txt
-	find . -name "*.cpp" -o -name "*.h" | xargs clang-format -i
+	find . -type f -not -path '*/build/*' \( -name "*.cpp" -o -name "*.h" \) | xargs clang-format -i
