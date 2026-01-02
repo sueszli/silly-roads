@@ -8,7 +8,7 @@ run: lint
 RELEASE_BUILD_DIR := $(PWD)/build/release
 .PHONY: run-release
 run-release: lint
-	cmake -B $(RELEASE_BUILD_DIR) -S . -DCMAKE_CXX_COMPILER=$(shell which clang++) -DCMAKE_BUILD_TYPE=Release -DDISABLE_ASAN=ON -DDISABLE_UBSAN=ON -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON
+	cmake -B $(RELEASE_BUILD_DIR) -S . -DCMAKE_CXX_COMPILER=$(shell which clang++) -DCMAKE_BUILD_TYPE=Release -DDISABLE_ASAN=ON -DDISABLE_UBSAN=ON -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_BUILD_TYPE=Release
 	cmake --build $(RELEASE_BUILD_DIR) -j$(shell sysctl -n hw.ncpu)
 	$(RELEASE_BUILD_DIR)/binary
 
@@ -33,7 +33,7 @@ test: lint
 
 .PHONY: lint
 lint:
-	cppcheck --enable=all --std=c++23 --language=c++ --suppressions-list=suppressions-cppcheck.txt --check-level=exhaustive --inconclusive --inline-suppr -I src/ src/
+	cppcheck --enable=all --std=c++23 --language=c++ --suppressions-list=suppressions-cppcheck.txt --check-level=exhaustive --inconclusive --inline-suppr -I src/ -I $(DEFAULT_BUILD_DIR)/_deps/raylib-src/src src/
 
 .PHONY: fmt
 fmt:

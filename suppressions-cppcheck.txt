@@ -1,2 +1,4 @@
 checkersReport
 missingIncludeSystem
+
+syntaxError:*/raylib.h

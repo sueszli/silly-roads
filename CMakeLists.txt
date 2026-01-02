@@ -1,6 +1,14 @@
 cmake_minimum_required(VERSION 3.27 FATAL_ERROR)
 project(defer LANGUAGES CXX)
 
+if(NOT CMAKE_BUILD_TYPE STREQUAL "Release")
+  message(STATUS "Defaulting build type to Debug.")
+  set(CMAKE_BUILD_TYPE
+      Debug
+      CACHE STRING "" FORCE
+  )
+endif()
+
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -113,12 +121,6 @@ set(gtest_force_shared_crt
     ON
     CACHE BOOL "" FORCE
 )
-# disable warning for google test
-foreach(t gtest gtest_main gmock gmock_main)
-  if(TARGET ${t})
-    target_compile_options(${t} PUBLIC -Wno-character-conversion)
-  endif()
-endforeach()
 FetchContent_MakeAvailable(googletest)
 
 FetchContent_Declare(raylib URL https://github.com/raysan5/raylib/archive/refs/tags/5.5.tar.gz)
@@ -127,6 +129,13 @@ set(BUILD_EXAMPLES
     CACHE BOOL "" FORCE
 )
 FetchContent_MakeAvailable(raylib)
+
+# disable warnings for dependencies
+foreach(t gtest gtest_main gmock gmock_main raylib glfw)
+  if(TARGET ${t})
+    target_compile_options(${t} PRIVATE -w)
+  endif()
+endforeach()
 
 #
 # sources
