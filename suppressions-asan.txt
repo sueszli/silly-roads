@@ -13,4 +13,5 @@ leak:__Balloc_D2A
 
 leak:_glfwDestroyWindowCocoa
 leak:_glfwPollEventsCocoa
+leak:_glfwInitCocoa
 
