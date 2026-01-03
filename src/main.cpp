@@ -94,8 +94,9 @@ void game_loop() {
 
     DrawFPS(10, 10);
     float dt = GetFrameTime();
-    if (dt > 0.05f)
+    if (dt > 0.05f) {
         dt = 0.05f;
+    }
 
     update_physics(dt);
 
