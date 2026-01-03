@@ -20,18 +20,10 @@
 
 C++ Specific:
 
-- Instead of `std::cout`, use `fmt::print`.
-
-C Specific:
-
 - Use explicit types only (e.g., `std::int32_t`), no implicit types (`int`)
-- Avoid architecture-dependent types (e.g., `size_t`, `long`) to ensure portability; use fixed-size explicit types instead
+- Instead of `std::cout`, use `fmt::print`.
+- Avoid classes. Prefer structs with public members and state-less functions in namespaces.
 - Strict Const Correctness: Pointers are `const` by default. Only drop `const` when mutation is strictly required.
-
-Pre-commit:
-
-- Add unit tests for each new function and feature
-- Run `make fmt`, `make lint`, `make test`
 
 # (2) Quality
 
