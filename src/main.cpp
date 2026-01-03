@@ -1,57 +1,50 @@
 #include "raylib.h"
 #include "rlgl.h"
+#include <cassert>
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
 
+Vector3 ball_pos = {0.0f, 1.0f, 0.0f};
+Camera3D camera = {{0.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 1.0f}, {0.0f, 1.0f, 0.0f}, 45.0f, CAMERA_PERSPECTIVE};
+
+void game_loop() {
+    DrawFPS(10, 10);
+    float dt = GetFrameTime();
+    assert(dt >= 0.0f);
+
+    ball_pos.z -= 10.0f * dt;
+    camera.target = ball_pos;
+    camera.position = (Vector3){ball_pos.x, ball_pos.y + 10.0f, ball_pos.z + 10.0f};
+
+    BeginDrawing();
+    ClearBackground(BLACK);
+    BeginMode3D(camera);
+
+    // infinite grid
+    rlPushMatrix();
+    rlTranslatef(0.0f, 0.0f, roundf(ball_pos.z));
+    DrawGrid(200, 1.0f);
+    rlPopMatrix();
+
+    // rolling ball
+    rlPushMatrix();
+    rlTranslatef(ball_pos.x, ball_pos.y, ball_pos.z);
+    rlRotatef((-ball_pos.z) * (180.0f / PI), 1.0f, 0.0f, 0.0f);
+    DrawSphere(Vector3{0.0f, 0.0f, 0.0f}, 1.0f, RED);
+    DrawSphereWires(Vector3{0.0f, 0.0f, 0.0f}, 1.0f, 16, 16, MAROON);
+    rlPopMatrix();
+
+    EndMode3D();
+    EndDrawing();
+}
+
 std::int32_t main() {
     InitWindow(800, 450, "raycer");
-
-    // car state
-    Vector3 carPosition = {0.0f, 0.0f, 0.0f};
-    float speed = 10.0f; // Units per second
-
-    Camera3D camera = {};
-    // camera.position and target are updated in the loop
-    camera.up = (Vector3){0.0f, 1.0f, 0.0f};
-    camera.fovy = 45.0f;
-    camera.projection = CAMERA_PERSPECTIVE;
-
     SetTargetFPS(60);
-
     while (!WindowShouldClose()) {
-        DrawFPS(10, 10);
-
-        // update
-        float dt = GetFrameTime();
-        carPosition.z -= speed * dt;
-
-        // camera follow
-        camera.target = carPosition;
-        camera.position = (Vector3){carPosition.x + 0.0f, carPosition.y + 10.0f, carPosition.z + 10.0f};
-
-        // draw
-        BeginDrawing();
-        ClearBackground(BLACK);
-
-        BeginMode3D(camera);
-
-        // infinite grid effect: draw grid offset by the rounded car position so it always appears under the car
-        rlPushMatrix();
-        rlTranslatef(0.0f, 0.0f, roundf(carPosition.z));
-        DrawGrid(200, 1.0f);
-        rlPopMatrix();
-
-        // draw car
-        DrawCube(carPosition, 2.0f, 1.0f, 4.0f, RED);
-        DrawCubeWires(carPosition, 2.0f, 1.0f, 4.0f, MAROON);
-
-        EndMode3D();
-
-        EndDrawing();
+        game_loop();
     }
-
     CloseWindow();
-
     return EXIT_SUCCESS;
 }
