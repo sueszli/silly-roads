@@ -147,8 +147,9 @@ file(GLOB_RECURSE SRCS src/*.cpp)
 list(FILTER SRCS EXCLUDE REGEX "src/main\\.cpp$")
 add_library(lib ${SRCS})
 target_include_directories(lib PUBLIC src)
+target_link_libraries(lib PUBLIC raylib)
 add_executable(binary src/main.cpp)
-target_link_libraries(binary PRIVATE lib raylib)
+target_link_libraries(binary PRIVATE lib)
 
 #
 # tests
