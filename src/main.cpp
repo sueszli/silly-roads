@@ -18,90 +18,81 @@ constexpr float NOISE_SCALE = 0.1f;
 constexpr float TERRAIN_HEIGHT_SCALE = 10.0f;
 constexpr float BALL_RADIUS = 0.5f;
 
-class PerlinNoise {
-  public:
-    explicit PerlinNoise(std::int32_t seed = 0) {
-        p.resize(256);
-        std::iota(p.begin(), p.end(), 0);
-        std::default_random_engine engine(static_cast<std::default_random_engine::result_type>(seed));
-        std::shuffle(p.begin(), p.end(), engine);
-        p.insert(p.end(), p.begin(), p.end());
-    }
-
-    [[nodiscard]] float noise(float x, float y, float z) const {
-        const std::int32_t X = (std::int32_t)std::floor(x) & 255;
-        const std::int32_t Y = (std::int32_t)std::floor(y) & 255;
-        const std::int32_t Z = (std::int32_t)std::floor(z) & 255;
-
-        x -= std::floor(x);
-        y -= std::floor(y);
-        z -= std::floor(z);
-
-        const float u = fade(x);
-        const float v = fade(y);
-        const float w = fade(z);
-
-        const std::int32_t A = p[static_cast<size_t>(X)] + Y;
-        const std::int32_t AA = p[static_cast<size_t>(A)] + Z;
-        const std::int32_t AB = p[static_cast<size_t>(A) + 1] + Z;
-        const std::int32_t B = p[static_cast<size_t>(X) + 1] + Y;
-        const std::int32_t BA = p[static_cast<size_t>(B)] + Z;
-        const std::int32_t BB = p[static_cast<size_t>(B) + 1] + Z;
-
-        assert(static_cast<size_t>(AA + 1) < p.size());
-        assert(static_cast<size_t>(BB + 1) < p.size());
-
-        return lerp(w, lerp(v, lerp(u, grad(p[static_cast<size_t>(AA)], x, y, z), grad(p[static_cast<size_t>(BA)], x - 1, y, z)), lerp(u, grad(p[static_cast<size_t>(AB)], x, y - 1, z), grad(p[static_cast<size_t>(BB)], x - 1, y - 1, z))), lerp(v, lerp(u, grad(p[static_cast<size_t>(AA) + 1], x, y, z - 1), grad(p[static_cast<size_t>(BA) + 1], x - 1, y, z - 1)), lerp(u, grad(p[static_cast<size_t>(AB) + 1], x, y - 1, z - 1), grad(p[static_cast<size_t>(BB) + 1], x - 1, y - 1, z - 1))));
-    }
-
-    [[nodiscard]] float noise(float x, float y) const { return noise(x, y, 0.0f); }
-
-  private:
-    std::vector<std::int32_t> p;
-
-    static float fade(float t) { return t * t * t * (t * (t * 6 - 15) + 10); }
-    static float lerp(float t, float a, float b) { return a + t * (b - a); }
-    static float grad(std::int32_t hash, float x, float y, float z) {
+[[nodiscard]] float sample_noise(const std::vector<std::int32_t> &p, float x, float y, float z) {
+    const auto fade = [](float t) { return t * t * t * (t * (t * 6 - 15) + 10); };
+    const auto lerp = [](float t, float a, float b) { return a + t * (b - a); };
+    const auto grad = [](std::int32_t hash, float x, float y, float z) {
         const std::int32_t h = hash & 15;
         const float u = h < 8 ? x : y;
         const float v = h < 4 ? y : h == 12 || h == 14 ? x : z;
         return ((h & 1) == 0 ? u : -u) + ((h & 2) == 0 ? v : -v);
-    }
-};
+    };
 
-struct GameState {
-    Vector3 ball_pos{60.0f, 10.0f, 60.0f};
-    Vector3 ball_vel{0.0f, 0.0f, 0.0f};
-    Camera3D camera{{0.0f, 10.0f, 10.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, 45.0f, CAMERA_PERSPECTIVE};
-    Mesh terrain_mesh{};
-    Model terrain_model{};
-    bool mesh_generated{false};
-    PerlinNoise noise_gen{12345};
-};
+    const std::int32_t X = static_cast<std::int32_t>(std::floor(x)) & 255;
+    const std::int32_t Y = static_cast<std::int32_t>(std::floor(y)) & 255;
+    const std::int32_t Z = static_cast<std::int32_t>(std::floor(z)) & 255;
 
-[[nodiscard]] float get_terrain_height(const PerlinNoise &noise, float x, float z) { return noise.noise(x * NOISE_SCALE, z * NOISE_SCALE) * TERRAIN_HEIGHT_SCALE; }
+    x -= std::floor(x);
+    y -= std::floor(y);
+    z -= std::floor(z);
 
-[[nodiscard]] Vector3 get_terrain_normal(const PerlinNoise &noise, float x, float z) {
-    const float h = get_terrain_height(noise, x, z);
+    const float u = fade(x);
+    const float v = fade(y);
+    const float w = fade(z);
+
+    const std::int32_t A = p[static_cast<std::size_t>(X)] + Y;
+    const std::int32_t AA = p[static_cast<std::size_t>(A)] + Z;
+    const std::int32_t AB = p[static_cast<std::size_t>(A) + 1] + Z;
+    const std::int32_t B = p[static_cast<std::size_t>(X) + 1] + Y;
+    const std::int32_t BA = p[static_cast<std::size_t>(B)] + Z;
+    const std::int32_t BB = p[static_cast<std::size_t>(B) + 1] + Z;
+
+    return lerp(w, lerp(v, lerp(u, grad(p[static_cast<std::size_t>(AA)], x, y, z), grad(p[static_cast<std::size_t>(BA)], x - 1, y, z)), lerp(u, grad(p[static_cast<std::size_t>(AB)], x, y - 1, z), grad(p[static_cast<std::size_t>(BB)], x - 1, y - 1, z))), lerp(v, lerp(u, grad(p[static_cast<std::size_t>(AA) + 1], x, y, z - 1), grad(p[static_cast<std::size_t>(BA) + 1], x - 1, y, z - 1)), lerp(u, grad(p[static_cast<std::size_t>(AB) + 1], x, y - 1, z - 1), grad(p[static_cast<std::size_t>(BB) + 1], x - 1, y - 1, z - 1))));
+}
+
+[[nodiscard]] std::vector<std::int32_t> generate_permutation() {
+    std::vector<std::int32_t> p(256);
+    std::iota(p.begin(), p.end(), 0);
+    constexpr std::int32_t seed = 42;
+    std::default_random_engine engine(static_cast<std::uint32_t>(seed));
+    std::shuffle(p.begin(), p.end(), engine);
+    p.insert(p.end(), p.begin(), p.end());
+    return p;
+}
+
+[[nodiscard]] float get_terrain_height(const std::vector<std::int32_t> &p, float x, float z) { return sample_noise(p, x * NOISE_SCALE, 0.0f, z * NOISE_SCALE) * TERRAIN_HEIGHT_SCALE; }
+
+[[nodiscard]] Vector3 get_terrain_normal(const std::vector<std::int32_t> &p, float x, float z) {
+    const float h = get_terrain_height(p, x, z);
     constexpr float step = 0.1f;
-    const float h_x = get_terrain_height(noise, x + step, z);
-    const float h_z = get_terrain_height(noise, x, z + step);
+    const float h_x = get_terrain_height(p, x + step, z);
+    const float h_z = get_terrain_height(p, x, z + step);
 
     const Vector3 v1 = {step, h_x - h, 0.0f};
     const Vector3 v2 = {0.0f, h_z - h, step};
 
     const Vector3 normal = {v1.y * v2.z - v1.z * v2.y, v1.z * v2.x - v1.x * v2.z, v1.x * v2.y - v1.y * v2.x};
-
-    const float len = sqrtf(normal.x * normal.x + normal.y * normal.y + normal.z * normal.z);
+    const float len = std::sqrt(normal.x * normal.x + normal.y * normal.y + normal.z * normal.z);
     return {normal.x / len, normal.y / len, normal.z / len};
 }
+
+struct GameState {
+    Vector3 ball_pos;
+    Vector3 ball_vel;
+    Camera3D camera;
+    Mesh terrain_mesh;
+    Model terrain_model;
+    Texture2D texture;
+    bool mesh_generated;
+    std::vector<std::int32_t> noise_permutation;
+};
 
 void generate_terrain_mesh(GameState &state) {
     if (state.terrain_mesh.vertexCount > 0) {
         UnloadMesh(state.terrain_mesh);
     }
 
-    state.terrain_mesh = {};
+    state.terrain_mesh = {0};
     state.terrain_mesh.triangleCount = (GRID_SIZE - 1) * (GRID_SIZE - 1) * 2;
     state.terrain_mesh.vertexCount = state.terrain_mesh.triangleCount * 3;
 
@@ -125,12 +116,12 @@ void generate_terrain_mesh(GameState &state) {
             const float x4 = static_cast<float>(x + 1) * TILE_SIZE;
             const float z4 = static_cast<float>(z + 1) * TILE_SIZE;
 
-            const float y1 = get_terrain_height(state.noise_gen, x1, z1);
-            const float y2 = get_terrain_height(state.noise_gen, x2, z2);
-            const float y3 = get_terrain_height(state.noise_gen, x3, z3);
-            const float y4 = get_terrain_height(state.noise_gen, x4, z4);
+            const float y1 = get_terrain_height(state.noise_permutation, x1, z1);
+            const float y2 = get_terrain_height(state.noise_permutation, x2, z2);
+            const float y3 = get_terrain_height(state.noise_permutation, x3, z3);
+            const float y4 = get_terrain_height(state.noise_permutation, x4, z4);
 
-            const Vector3 n1 = get_terrain_normal(state.noise_gen, x1, z1);
+            const Vector3 n1 = get_terrain_normal(state.noise_permutation, x1, z1);
 
             auto PushVert = [&](float px, float py, float pz, float nx, float ny, float nz, float u, float v) {
                 state.terrain_mesh.vertices[vCounter * 3] = px;
@@ -148,19 +139,20 @@ void generate_terrain_mesh(GameState &state) {
                 vCounter++;
             };
 
-            PushVert(x1, y1, z1, n1.x, n1.y, n1.z, 0.0f, 0.0f); // V1
-            PushVert(x3, y3, z3, n1.x, n1.y, n1.z, 0.0f, 1.0f); // V3
-            PushVert(x2, y2, z2, n1.x, n1.y, n1.z, 1.0f, 0.0f); // V2
+            PushVert(x1, y1, z1, n1.x, n1.y, n1.z, 0.0f, 0.0f);
+            PushVert(x3, y3, z3, n1.x, n1.y, n1.z, 0.0f, 1.0f);
+            PushVert(x2, y2, z2, n1.x, n1.y, n1.z, 1.0f, 0.0f);
 
             const Vector3 n2 = {0.0f, 1.0f, 0.0f};
-            PushVert(x2, y2, z2, n2.x, n2.y, n2.z, 1.0f, 0.0f); // V2
-            PushVert(x3, y3, z3, n2.x, n2.y, n2.z, 0.0f, 1.0f); // V3
-            PushVert(x4, y4, z4, n2.x, n2.y, n2.z, 1.0f, 1.0f); // V4
+            PushVert(x2, y2, z2, n2.x, n2.y, n2.z, 1.0f, 0.0f);
+            PushVert(x3, y3, z3, n2.x, n2.y, n2.z, 0.0f, 1.0f);
+            PushVert(x4, y4, z4, n2.x, n2.y, n2.z, 1.0f, 1.0f);
         }
     }
 
     UploadMesh(&state.terrain_mesh, false);
     state.terrain_model = LoadModelFromMesh(state.terrain_mesh);
+    state.terrain_model.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = state.texture;
     state.mesh_generated = true;
 }
 
@@ -180,13 +172,11 @@ void update_physics(GameState &state, float dt) {
         state.ball_vel = {0.0f, 0.0f, 0.0f};
     }
 
-    const float terrain_h = get_terrain_height(state.noise_gen, state.ball_pos.x, state.ball_pos.z);
-
-    assert(terrain_h < 100.0f);
+    const float terrain_h = get_terrain_height(state.noise_permutation, state.ball_pos.x, state.ball_pos.z);
 
     if (state.ball_pos.y <= terrain_h + BALL_RADIUS) {
         state.ball_pos.y = terrain_h + BALL_RADIUS;
-        const Vector3 normal = get_terrain_normal(state.noise_gen, state.ball_pos.x, state.ball_pos.z);
+        const Vector3 normal = get_terrain_normal(state.noise_permutation, state.ball_pos.x, state.ball_pos.z);
         const float dot = state.ball_vel.x * normal.x + state.ball_vel.y * normal.y + state.ball_vel.z * normal.z;
 
         state.ball_vel.x -= dot * normal.x;
@@ -211,13 +201,13 @@ void game_loop(GameState &state) {
     update_physics(state, dt);
 
     state.camera.target = state.ball_pos;
-    state.camera.position = (Vector3){state.ball_pos.x, state.ball_pos.y + 15.0f, state.ball_pos.z + 15.0f};
+    state.camera.position = {state.ball_pos.x, state.ball_pos.y + 15.0f, state.ball_pos.z + 15.0f};
 
     BeginDrawing();
     ClearBackground(SKYBLUE);
     BeginMode3D(state.camera);
 
-    DrawModel(state.terrain_model, {0.0f, 0.0f, 0.0f}, 1.0f, GREEN);
+    DrawModel(state.terrain_model, {0.0f, 0.0f, 0.0f}, 1.0f, WHITE);
     DrawGrid(GRID_SIZE, 10.0f);
     DrawSphere(state.ball_pos, BALL_RADIUS, RED);
     DrawSphereWires(state.ball_pos, BALL_RADIUS, 16, 16, MAROON);
@@ -232,13 +222,27 @@ std::int32_t main() {
     InitWindow(800, 450, "raycer");
     SetTargetFPS(60);
 
-    GameState state;
+    Image checked = GenImageChecked(256, 256, 32, 32, DARKGRAY, WHITE);
+    Texture2D texture = LoadTextureFromImage(checked);
+    UnloadImage(checked);
+
+    GameState state{
+        .ball_pos = {60.0f, 10.0f, 60.0f},
+        .ball_vel = {0.0f, 0.0f, 0.0f},
+        .camera = {.position = {0.0f, 10.0f, 10.0f}, .target = {0.0f, 0.0f, 0.0f}, .up = {0.0f, 1.0f, 0.0f}, .fovy = 45.0f, .projection = CAMERA_PERSPECTIVE},
+        .terrain_mesh = {},
+        .terrain_model = {},
+        .texture = texture,
+        .mesh_generated = false,
+        .noise_permutation = generate_permutation(),
+    };
 
     while (!WindowShouldClose()) {
         game_loop(state);
     }
 
     UnloadModel(state.terrain_model);
+    UnloadTexture(state.texture);
     CloseWindow();
 
     return EXIT_SUCCESS;
