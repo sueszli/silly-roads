@@ -53,6 +53,7 @@ void generate_terrain_mesh() {
 }
 
 void update_physics(float dt) {
+    assert(!isnan(dt));
     assert(dt >= 0.0f);
     assert(dt < 1.0f);
     constexpr Vector3 gravity{0.0f, -20.0f, 0.0f};
