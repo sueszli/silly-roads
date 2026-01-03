@@ -22,7 +22,22 @@ struct GameState {
     bool mesh_generated;
 };
 
-GameState state;
+GameState state = GameState{
+    .ball_pos = {60.0f, 10.0f, 60.0f},
+    .ball_vel = {0.0f, 0.0f, 0.0f},
+    .camera =
+        {
+            .position = {0.0f, 10.0f, 10.0f},
+            .target = {0.0f, 0.0f, 0.0f},
+            .up = {0.0f, 1.0f, 0.0f},
+            .fovy = 45.0f,
+            .projection = CAMERA_PERSPECTIVE,
+        },
+    .terrain_mesh = {},
+    .terrain_model = {},
+    .texture = {},
+    .mesh_generated = false,
+};
 
 void generate_terrain_mesh() {
     if (state.terrain_mesh.vertexCount > 0) {
@@ -109,16 +124,7 @@ std::int32_t main() {
     Texture2D texture = LoadTextureFromImage(checked);
     assert(texture.id != 0);
     UnloadImage(checked);
-
-    state = GameState{
-        .ball_pos = {60.0f, 10.0f, 60.0f},
-        .ball_vel = {0.0f, 0.0f, 0.0f},
-        .camera = {.position = {0.0f, 10.0f, 10.0f}, .target = {0.0f, 0.0f, 0.0f}, .up = {0.0f, 1.0f, 0.0f}, .fovy = 45.0f, .projection = CAMERA_PERSPECTIVE},
-        .terrain_mesh = {},
-        .terrain_model = {},
-        .texture = texture,
-        .mesh_generated = false,
-    };
+    state.texture = texture;
 
     while (!WindowShouldClose()) {
         game_loop();

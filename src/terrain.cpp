@@ -18,20 +18,22 @@ constexpr float TERRAIN_HEIGHT_SCALE = 10.0f; // maximum amplitude of the terrai
 /** returns a randomized lookup table for noise generation */
 const std::vector<std::int32_t> &get_permutation() {
     static const std::vector<std::int32_t> p = []() {
-        std::vector<std::int32_t> p(256);
-        std::iota(p.begin(), p.end(), 0);
+        std::vector<std::int32_t> vec(256);
+        std::iota(vec.begin(), vec.end(), 0);
         constexpr std::int32_t seed = 42;
         std::default_random_engine engine(static_cast<std::uint32_t>(seed));
-        std::shuffle(p.begin(), p.end(), engine);
-        p.insert(p.end(), p.begin(), p.end());
-        assert(p.size() == 512);
-        return p;
+        std::shuffle(vec.begin(), vec.end(), engine);
+        vec.insert(vec.end(), vec.begin(), vec.end());
+        assert(vec.size() == 512);
+        return vec;
     }();
     return p;
 }
 
 /** implements 3d perlin noise at given coordinates */
 float sample_noise(float x, float y, float z) {
+    assert(!std::isnan(x) && !std::isnan(y) && !std::isnan(z));
+
     const auto &p = get_permutation();
     assert(p.size() == 512);
     const auto fade = [](float t) { return t * t * t * (t * (t * 6 - 15) + 10); };
@@ -68,10 +70,15 @@ float sample_noise(float x, float y, float z) {
 } // namespace
 
 /** calculates height using 2d world coordinates and noise */
-float get_terrain_height(float x, float z) { return sample_noise(x * NOISE_SCALE, 0.0f, z * NOISE_SCALE) * TERRAIN_HEIGHT_SCALE; }
+float get_terrain_height(float x, float z) {
+    assert(!std::isnan(x) && !std::isnan(z));
+    return sample_noise(x * NOISE_SCALE, 0.0f, z * NOISE_SCALE) * TERRAIN_HEIGHT_SCALE;
+}
 
-// calculates surface normal using central difference
+/** calculates surface normal using central difference */
 Vector3 get_terrain_normal(float x, float z) {
+    assert(!std::isnan(x) && !std::isnan(z));
+
     const float h = get_terrain_height(x, z);
     constexpr float step = 0.1f;
     const float h_x = get_terrain_height(x + step, z);
