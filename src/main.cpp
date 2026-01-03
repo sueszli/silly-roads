@@ -14,8 +14,7 @@ namespace {
 constexpr float BALL_RADIUS = 0.5f;
 constexpr Vector3 PHYS_GRAVITY{0.0f, -150.0f, 0.0f}; // gravitational force
 constexpr float PHYS_MOVE_FORCE = 80.0f;             // player control force
-constexpr float PHYS_JUMP_FORCE = 500.0f;
-constexpr float PHYS_DRAG = 0.98f; // drag coefficient
+constexpr float PHYS_DRAG = 0.98f;                   // drag coefficient
 
 struct GameState {
     Vector3 ball_pos = {60.0f, 20.0f, 60.0f};
@@ -109,10 +108,6 @@ void update_physics_mut(GameState *state, float dt) {
     // recheck ground collision after movement
     terrain_h = get_terrain_height(state->ball_pos.x, state->ball_pos.z);
     on_ground = (state->ball_pos.y <= terrain_h + BALL_RADIUS);
-
-    if (IsKeyPressed(KEY_SPACE) && on_ground) {
-        state->ball_vel.y += PHYS_JUMP_FORCE * dt;
-    }
 
     if (on_ground) {
         state->ball_pos.y = terrain_h + BALL_RADIUS;
