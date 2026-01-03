@@ -26,19 +26,6 @@ run-leaks: lint
 		-exclude __createContextTelemetryDataWithQueueLabelAndCallstack_block_invoke \
 		-- $(LEAKS_BUILD_DIR)/binary
 
-WASM_BUILD_DIR := $(PWD)/build/wasm
-.PHONY: wasm
-wasm:
-	rm -rf $(WASM_BUILD_DIR)
-	mkdir -p $(WASM_BUILD_DIR)
-	docker run --rm \
-		-v $(PWD):/src \
-		-u $(shell id -u):$(shell id -g) \
-		emscripten/emsdk:latest \
-		/bin/bash -c "emcmake cmake -B build/wasm -S . -DPLATFORM=Web -DCMAKE_BUILD_TYPE=Release -DDISABLE_ASAN=ON -DDISABLE_UBSAN=ON -DENABLE_HARDENING=OFF -DCMAKE_EXECUTABLE_SUFFIX='.html' -DCMAKE_EXE_LINKER_FLAGS='-sASYNCIFY -sUSE_GLFW=3 -sGL_ENABLE_GET_PROC_ADDRESS' && cmake --build build/wasm"
-	open http://localhost:8000/binary.html
-	python3 -m http.server --directory $(WASM_BUILD_DIR) 8000
-
 TEST_BUILD_DIR := $(PWD)/build/test
 .PHONY: test
 test: lint
@@ -49,6 +36,19 @@ test: lint
 #
 # utils
 #
+
+WASM_BUILD_DIR := $(PWD)/build/wasm
+.PHONY: wasm
+wasm:
+	rm -rf $(WASM_BUILD_DIR)
+	mkdir -p $(WASM_BUILD_DIR)
+	docker run --rm \
+		-v $(PWD):/src \
+		-u $(shell id -u):$(shell id -g) \
+		emscripten/emsdk:latest \
+		/bin/bash -c "emcmake cmake -B build/wasm -S . -DPLATFORM=Web -DCMAKE_BUILD_TYPE=Release -DDISABLE_ASAN=ON -DDISABLE_UBSAN=ON -DCMAKE_EXECUTABLE_SUFFIX='.html' -DCMAKE_EXE_LINKER_FLAGS='-sASYNCIFY -sUSE_GLFW=3 -sGL_ENABLE_GET_PROC_ADDRESS' && cmake --build build/wasm"
+	open http://localhost:8000/binary.html
+	python3 -m http.server --directory $(WASM_BUILD_DIR) 8000
 
 .PHONY: lint
 lint:
