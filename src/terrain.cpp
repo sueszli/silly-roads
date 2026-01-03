@@ -94,7 +94,7 @@ Vector3 get_terrain_normal(float x, float z) {
 }
 
 // builds the mesh buffers for the grid
-Mesh generate_terrain_mesh_data() {
+Mesh generate_terrain_mesh_data(float offset_x, float offset_z) {
     Mesh mesh{};
     // each grid cell has two triangles
     mesh.triangleCount = (GRID_SIZE - 1) * (GRID_SIZE - 1) * 2;
@@ -126,13 +126,13 @@ Mesh generate_terrain_mesh_data() {
             const float x4 = static_cast<float>(x + 1) * TILE_SIZE;
             const float z4 = static_cast<float>(z + 1) * TILE_SIZE;
 
-            const float y1 = get_terrain_height(x1, z1);
-            const float y2 = get_terrain_height(x2, z2);
-            const float y3 = get_terrain_height(x3, z3);
-            const float y4 = get_terrain_height(x4, z4);
+            const float y1 = get_terrain_height(x1 + offset_x, z1 + offset_z);
+            const float y2 = get_terrain_height(x2 + offset_x, z2 + offset_z);
+            const float y3 = get_terrain_height(x3 + offset_x, z3 + offset_z);
+            const float y4 = get_terrain_height(x4 + offset_x, z4 + offset_z);
 
             // get surface normal for shading
-            const Vector3 n1 = get_terrain_normal(x1, z1);
+            const Vector3 n1 = get_terrain_normal(x1 + offset_x, z1 + offset_z);
 
             // helper to add a vertex to the mesh buffers
             auto PushVert = [&](float px, float py, float pz, float nx, float ny, float nz, float u, float v) {

@@ -80,3 +80,4 @@ leak:message_handler_message
 leak:_LSASNCreateWithUInt64
 leak:__createContextTelemetryDataWithQueueLabelAndCallstack_block_invoke
 leak:CFBundleCopyResourceURL
+leak:PAPerfLoggingClientOperation

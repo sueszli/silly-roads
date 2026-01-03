@@ -13,30 +13,23 @@ namespace {
 constexpr float BALL_RADIUS = 0.5f;
 
 struct GameState {
-    Vector3 ball_pos;
-    Vector3 ball_vel;
-    Camera3D camera;
-    Mesh terrain_mesh;
-    Model terrain_model;
-    Texture2D texture;
-    bool mesh_generated;
+    Vector3 ball_pos = {60.0f, 10.0f, 60.0f};
+    Vector3 ball_vel = {0.0f, 0.0f, 0.0f};
+    Camera3D camera = {
+        .position = {0.0f, 10.0f, 10.0f},
+        .target = {0.0f, 0.0f, 0.0f},
+        .up = {0.0f, 1.0f, 0.0f},
+        .fovy = 45.0f,
+        .projection = CAMERA_PERSPECTIVE,
+    };
+    Mesh terrain_mesh = {};
+    Model terrain_model = {};
+    Texture2D texture = {};
+    bool mesh_generated = false;
+    float terrain_offset_x = 0.0f;
+    float terrain_offset_z = 0.0f;
 };
-GameState STATE = GameState{
-    .ball_pos = {60.0f, 10.0f, 60.0f},
-    .ball_vel = {0.0f, 0.0f, 0.0f},
-    .camera =
-        {
-            .position = {0.0f, 10.0f, 10.0f},
-            .target = {0.0f, 0.0f, 0.0f},
-            .up = {0.0f, 1.0f, 0.0f},
-            .fovy = 45.0f,
-            .projection = CAMERA_PERSPECTIVE,
-        },
-    .terrain_mesh = {},
-    .terrain_model = {},
-    .texture = {},
-    .mesh_generated = false,
-};
+GameState STATE{};
 
 /** regenerates the terrain mesh from procedural data and uploads it to the GPU */
 void generate_terrain_mesh() {
@@ -45,7 +38,7 @@ void generate_terrain_mesh() {
         UnloadMesh(STATE.terrain_mesh);
     }
 
-    STATE.terrain_mesh = generate_terrain_mesh_data();
+    STATE.terrain_mesh = generate_terrain_mesh_data(STATE.terrain_offset_x, STATE.terrain_offset_z);
 
     // upload mesh to GPU and assign the texture
     UploadMesh(&STATE.terrain_mesh, false);
@@ -60,6 +53,25 @@ void update_physics(float dt) {
     assert(dt >= 0.0f);
     assert(dt < 1.0f);
     constexpr Vector3 gravity{0.0f, -20.0f, 0.0f};
+    constexpr float acceleration = 30.0f;
+
+    const float terrain_h = get_terrain_height(STATE.ball_pos.x, STATE.ball_pos.z);
+    // flight controls - always allow movement
+    if (IsKeyDown(KEY_W)) {
+        STATE.ball_vel.z -= acceleration * dt;
+    }
+    if (IsKeyDown(KEY_S)) {
+        STATE.ball_vel.z += acceleration * dt;
+    }
+    if (IsKeyDown(KEY_A)) {
+        STATE.ball_vel.x -= acceleration * dt;
+    }
+    if (IsKeyDown(KEY_D)) {
+        STATE.ball_vel.x += acceleration * dt;
+    }
+    if (IsKeyDown(KEY_SPACE)) {
+        STATE.ball_vel.y += acceleration * dt;
+    }
 
     // apply gravity
     STATE.ball_vel.x += gravity.x * dt;
@@ -70,14 +82,6 @@ void update_physics(float dt) {
     STATE.ball_pos.x += STATE.ball_vel.x * dt;
     STATE.ball_pos.y += STATE.ball_vel.y * dt;
     STATE.ball_pos.z += STATE.ball_vel.z * dt;
-
-    // respawn if fell off the world
-    if (STATE.ball_pos.y < -50.0f) {
-        STATE.ball_pos = {60.0f, 10.0f, 60.0f};
-        STATE.ball_vel = {0.0f, 0.0f, 0.0f};
-    }
-
-    const float terrain_h = get_terrain_height(STATE.ball_pos.x, STATE.ball_pos.z);
 
     // collision with terrain
     if (STATE.ball_pos.y <= terrain_h + BALL_RADIUS) {
@@ -104,6 +108,21 @@ void game_loop() {
         generate_terrain_mesh();
     }
 
+    // check if we need to regenerate terrain
+    // center of current mesh relative to world
+    const float half_size = (GRID_SIZE - 1) * 0.5f; // TILE_SIZE is 1.0f implicitly
+    const float center_x = STATE.terrain_offset_x + half_size;
+    const float center_z = STATE.terrain_offset_z + half_size;
+    const float dist_x = std::abs(STATE.ball_pos.x - center_x);
+    const float dist_z = std::abs(STATE.ball_pos.z - center_z);
+
+    // regenerate if player is more than 30 units away from center (grid is ~120 wide)
+    if (dist_x > 30.0f || dist_z > 30.0f) {
+        STATE.terrain_offset_x = std::floor(STATE.ball_pos.x - half_size);
+        STATE.terrain_offset_z = std::floor(STATE.ball_pos.z - half_size);
+        generate_terrain_mesh();
+    }
+
     DrawFPS(10, 10);
 
     // update physics with clamped delta time
@@ -123,8 +142,7 @@ void game_loop() {
     ClearBackground(SKYBLUE);
     BeginMode3D(STATE.camera);
 
-    DrawModel(STATE.terrain_model, {0.0f, 0.0f, 0.0f}, 1.0f, WHITE);
-    DrawGrid(GRID_SIZE, 10.0f);
+    DrawModel(STATE.terrain_model, {STATE.terrain_offset_x, 0.0f, STATE.terrain_offset_z}, 1.0f, WHITE);
     DrawSphere(STATE.ball_pos, BALL_RADIUS, RED);
     DrawSphereWires(STATE.ball_pos, BALL_RADIUS, 16, 16, MAROON);
 
