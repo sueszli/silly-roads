@@ -111,63 +111,67 @@ Mesh generate_terrain_mesh_data(float offset_x, float offset_z) {
     assert(mesh.texcoords != nullptr);
     assert(mesh.colors != nullptr);
 
-    std::int32_t vCounter = 0;
+    std::int32_t v_counter = 0;
+
+    // helper to add a vertex to the mesh buffers
+    const auto push_vert = [&](float px, float py, float pz, float nx, float ny, float nz, float u, float v) {
+        assert(v_counter < mesh.vertexCount);
+        // store position components
+        mesh.vertices[v_counter * 3] = px;
+        mesh.vertices[v_counter * 3 + 1] = py;
+        mesh.vertices[v_counter * 3 + 2] = pz;
+        // store normal components
+        mesh.normals[v_counter * 3] = nx;
+        mesh.normals[v_counter * 3 + 1] = ny;
+        mesh.normals[v_counter * 3 + 2] = nz;
+        // store texture coordinates
+        mesh.texcoords[v_counter * 2] = u;
+        mesh.texcoords[v_counter * 2 + 1] = v;
+        // store vertex colors (default gray)
+        mesh.colors[v_counter * 4] = 100;
+        mesh.colors[v_counter * 4 + 1] = 100;
+        mesh.colors[v_counter * 4 + 2] = 100;
+        mesh.colors[v_counter * 4 + 3] = 255;
+        v_counter++;
+    };
+
+    const auto process_tile = [&](std::int32_t x, std::int32_t z) {
+        // world coordinates for the four corners of a tile
+        const float x1 = static_cast<float>(x) * TILE_SIZE;
+        const float z1 = static_cast<float>(z) * TILE_SIZE;
+        const float x2 = static_cast<float>(x + 1) * TILE_SIZE;
+        const float z2 = static_cast<float>(z) * TILE_SIZE;
+        const float x3 = static_cast<float>(x) * TILE_SIZE;
+        const float z3 = static_cast<float>(z + 1) * TILE_SIZE;
+        const float x4 = static_cast<float>(x + 1) * TILE_SIZE;
+        const float z4 = static_cast<float>(z + 1) * TILE_SIZE;
+
+        const float y1 = get_terrain_height(x1 + offset_x, z1 + offset_z);
+        const float y2 = get_terrain_height(x2 + offset_x, z2 + offset_z);
+        const float y3 = get_terrain_height(x3 + offset_x, z3 + offset_z);
+        const float y4 = get_terrain_height(x4 + offset_x, z4 + offset_z);
+
+        // get surface normal for shading
+        const Vector3 n1 = get_terrain_normal(x1 + offset_x, z1 + offset_z);
+
+        // first triangle of the quad
+        push_vert(x1, y1, z1, n1.x, n1.y, n1.z, 0.0f, 0.0f);
+        push_vert(x3, y3, z3, n1.x, n1.y, n1.z, 0.0f, 1.0f);
+        push_vert(x2, y2, z2, n1.x, n1.y, n1.z, 1.0f, 0.0f);
+
+        // second triangle of the quad (flat normal for now)
+        const Vector3 n2 = {0.0f, 1.0f, 0.0f};
+        push_vert(x2, y2, z2, n2.x, n2.y, n2.z, 1.0f, 0.0f);
+        push_vert(x3, y3, z3, n2.x, n2.y, n2.z, 0.0f, 1.0f);
+        push_vert(x4, y4, z4, n2.x, n2.y, n2.z, 1.0f, 1.0f);
+    };
 
     // iterate through the grid to generate vertices and normals
     for (std::int32_t z = 0; z < GRID_SIZE - 1; z++) {
         for (std::int32_t x = 0; x < GRID_SIZE - 1; x++) {
-            // world coordinates for the four corners of a tile
-            const float x1 = static_cast<float>(x) * TILE_SIZE;
-            const float z1 = static_cast<float>(z) * TILE_SIZE;
-            const float x2 = static_cast<float>(x + 1) * TILE_SIZE;
-            const float z2 = static_cast<float>(z) * TILE_SIZE;
-            const float x3 = static_cast<float>(x) * TILE_SIZE;
-            const float z3 = static_cast<float>(z + 1) * TILE_SIZE;
-            const float x4 = static_cast<float>(x + 1) * TILE_SIZE;
-            const float z4 = static_cast<float>(z + 1) * TILE_SIZE;
-
-            const float y1 = get_terrain_height(x1 + offset_x, z1 + offset_z);
-            const float y2 = get_terrain_height(x2 + offset_x, z2 + offset_z);
-            const float y3 = get_terrain_height(x3 + offset_x, z3 + offset_z);
-            const float y4 = get_terrain_height(x4 + offset_x, z4 + offset_z);
-
-            // get surface normal for shading
-            const Vector3 n1 = get_terrain_normal(x1 + offset_x, z1 + offset_z);
-
-            // helper to add a vertex to the mesh buffers
-            auto PushVert = [&](float px, float py, float pz, float nx, float ny, float nz, float u, float v) {
-                assert(vCounter < mesh.vertexCount);
-                // store position components
-                mesh.vertices[vCounter * 3] = px;
-                mesh.vertices[vCounter * 3 + 1] = py;
-                mesh.vertices[vCounter * 3 + 2] = pz;
-                // store normal components
-                mesh.normals[vCounter * 3] = nx;
-                mesh.normals[vCounter * 3 + 1] = ny;
-                mesh.normals[vCounter * 3 + 2] = nz;
-                // store texture coordinates
-                mesh.texcoords[vCounter * 2] = u;
-                mesh.texcoords[vCounter * 2 + 1] = v;
-                // store vertex colors (default gray)
-                mesh.colors[vCounter * 4] = 100;
-                mesh.colors[vCounter * 4 + 1] = 100;
-                mesh.colors[vCounter * 4 + 2] = 100;
-                mesh.colors[vCounter * 4 + 3] = 255;
-                vCounter++;
-            };
-
-            // first triangle of the quad
-            PushVert(x1, y1, z1, n1.x, n1.y, n1.z, 0.0f, 0.0f);
-            PushVert(x3, y3, z3, n1.x, n1.y, n1.z, 0.0f, 1.0f);
-            PushVert(x2, y2, z2, n1.x, n1.y, n1.z, 1.0f, 0.0f);
-
-            // second triangle of the quad (flat normal for now)
-            const Vector3 n2 = {0.0f, 1.0f, 0.0f};
-            PushVert(x2, y2, z2, n2.x, n2.y, n2.z, 1.0f, 0.0f);
-            PushVert(x3, y3, z3, n2.x, n2.y, n2.z, 0.0f, 1.0f);
-            PushVert(x4, y4, z4, n2.x, n2.y, n2.z, 1.0f, 1.0f);
+            process_tile(x, z);
         }
     }
-    assert(vCounter == mesh.vertexCount);
+    assert(v_counter == mesh.vertexCount);
     return mesh;
 }

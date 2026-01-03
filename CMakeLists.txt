@@ -131,6 +131,8 @@ set(BUILD_EXAMPLES
     CACHE BOOL "" FORCE
 )
 FetchContent_MakeAvailable(raylib)
+get_target_property(raylib_includes raylib INTERFACE_INCLUDE_DIRECTORIES)
+target_include_directories(raylib SYSTEM INTERFACE ${raylib_includes})
 
 # disable warnings for dependencies
 foreach(t gtest gtest_main gmock gmock_main raylib glfw)
