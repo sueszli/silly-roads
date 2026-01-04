@@ -167,7 +167,7 @@ void generate_road_mesh_mut(GameState *state) {
 
 void log_state(const GameState *state, std::int32_t frame) {
     assert(state != nullptr);
-    std::printf("[FRAME %d] CAR_POS:%.2f %.2f %.2f | SPEED:%.2f | HEADING:%.2f | PITCH:%.2f | ROLL:%.2f | WHEEL_STEER:%.2f\n", frame, state->car_pos.x, state->car_pos.y, state->car_pos.z, state->car_speed, state->car_heading, state->car_pitch, state->car_roll, state->wheels[0].steering_angle);
+    std::printf("CAR_POS:%.2f %.2f %.2f | SPEED:%.2f | HEADING:%.2f | PITCH:%.2f | ROLL:%.2f | WHEEL_STEER:%.2f\n", state->car_pos.x, state->car_pos.y, state->car_pos.z, state->car_speed, state->car_heading, state->car_pitch, state->car_roll, state->wheels[0].steering_angle);
 }
 
 //
@@ -270,6 +270,11 @@ void draw_frame(const GameState *state) {
     // game stats
     char pos_text[64];
     std::snprintf(pos_text, sizeof(pos_text), "X: %.2f Y: %.2f Z: %.2f", state->car_pos.x, state->car_pos.y, state->car_pos.z);
+
+    // draw speed on screen
+    char speed_text[64];
+    std::snprintf(speed_text, sizeof(speed_text), "SPEED: %.2f", state->car_speed);
+    DrawText(speed_text, 10, 40, 20, WHITE);
 
     // log state
     log_state(state, state->frame_count);

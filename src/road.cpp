@@ -25,7 +25,7 @@ Mesh generate_road_mesh(const Vector3 *points, std::int32_t count) {
     }
 
     const int samples_per_segment = 40;
-    const int total_samples = (count - 1) * samples_per_segment + 1;
+    const int total_samples = count * samples_per_segment + 1;
     const float road_width = 8.0f;
 
     std::vector<Vector3> center_points(static_cast<std::size_t>(total_samples));
@@ -35,15 +35,15 @@ Mesh generate_road_mesh(const Vector3 *points, std::int32_t count) {
         int segment = (int)global_t;
         float local_t = global_t - (float)segment;
 
-        if (segment >= count - 1) {
-            segment = count - 2;
+        if (segment >= count) {
+            segment = count - 1;
             local_t = 1.0f;
         }
 
-        int i0 = (segment > 0) ? segment - 1 : 0;
+        int i0 = (segment > 0) ? segment - 1 : count - 1;
         int i1 = segment;
-        int i2 = segment + 1;
-        int i3 = (segment + 2 < count) ? segment + 2 : count - 1;
+        int i2 = (segment + 1) % count;
+        int i3 = (segment + 2) % count;
 
         center_points[static_cast<std::size_t>(i)] = catmull_rom(points[i0], points[i1], points[i2], points[i3], local_t);
     }
