@@ -2,8 +2,9 @@
 #include "raylib.h"
 
 struct GameState {
-    Vector3 ball_pos = {60.0f, 20.0f, 60.0f};
-    Vector3 ball_vel = {0.0f, 0.0f, 0.0f};
+    Vector3 car_pos = {60.0f, 20.0f, 60.0f};
+    Vector3 car_vel = {0.0f, 0.0f, 0.0f};
+    float car_heading = 0.0f;
 
     Camera3D camera = {
         .position = {0.0f, 10.0f, 10.0f},

@@ -11,9 +11,9 @@
 
 namespace {
 
-constexpr float TILE_SIZE = 1.0f;             // world size of a single square tile
-constexpr float NOISE_SCALE = 0.1f;           // frequency of the perlin noise (lower is smoother)
-constexpr float TERRAIN_HEIGHT_SCALE = 10.0f; // maximum amplitude of the terrain height
+constexpr float TILE_SIZE = 1.0f;            // world size of a single square tile
+constexpr float NOISE_SCALE = 0.05f;         // frequency of the perlin noise (lower is smoother)
+constexpr float TERRAIN_HEIGHT_SCALE = 7.0f; // maximum amplitude of the terrain height
 
 /** returns a randomized lookup table for noise generation */
 const std::vector<std::int32_t> &get_permutation() {
