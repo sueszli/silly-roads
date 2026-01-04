@@ -13,6 +13,8 @@ struct GameState {
     Vector3 car_vel = {0.0f, 0.0f, 0.0f};
     float car_heading = 0.0f;
     float car_speed = 0.0f;
+    float car_pitch = 0.0f;       // rotation around X-axis (front/back tilt)
+    float car_roll = 0.0f;        // rotation around Z-axis (left/right tilt)
     float wheel_heights[4] = {0}; // FL, FR, RL, RR terrain heights
     WheelState wheels[4] = {
         {{-1.0f, -0.3f, 1.5f}, 0.0f, 0.0f},  // front-left

@@ -125,6 +125,11 @@ void update_physics_mut(GameState *state) {
     if (!is_on_ground) {
         // free fall
         state->car_vel.y += effective_gravity.y * dt;
+
+        // airborne: smoothly return to neutral tilt
+        constexpr float AIR_TILT_LERP = 2.0f;
+        state->car_pitch += (0.0f - state->car_pitch) * AIR_TILT_LERP * dt;
+        state->car_roll += (0.0f - state->car_roll) * AIR_TILT_LERP * dt;
     } else {
         // ground physics
         Vector3 terrain_normal = get_terrain_normal(state->car_pos.x, state->car_pos.z);
@@ -136,6 +141,22 @@ void update_physics_mut(GameState *state) {
             state->car_vel.y = slope_y;
         }
 
+        // calculate target pitch/roll from wheel heights
+        // wheel_heights: 0:FL, 1:FR, 2:RL, 3:RR
+        float front_avg = (state->wheel_heights[0] + state->wheel_heights[1]) * 0.5f;
+        float rear_avg = (state->wheel_heights[2] + state->wheel_heights[3]) * 0.5f;
+        float left_avg = (state->wheel_heights[0] + state->wheel_heights[2]) * 0.5f;
+        float right_avg = (state->wheel_heights[1] + state->wheel_heights[3]) * 0.5f;
+
+        // wheelbase ≈ 3.0, track_width ≈ 2.0
+        float target_pitch = std::atan2(rear_avg - front_avg, 3.0f);
+        float target_roll = std::atan2(left_avg - right_avg, 2.0f);
+
+        // smooth tilt
+        constexpr float TILT_LERP = 15.0f;
+        state->car_pitch += (target_pitch - state->car_pitch) * TILT_LERP * dt;
+        state->car_roll += (target_roll - state->car_roll) * TILT_LERP * dt;
+
         // keep car on surface
         if (state->car_pos.y < ground_y) {
             state->car_pos.y = ground_y;
@@ -143,6 +164,41 @@ void update_physics_mut(GameState *state) {
                 state->car_vel.y = 0;
         }
     }
+
+    // body collision detection (12 points: 4 corners of each of the 3 truck boxes)
+    struct BodyPoint {
+        Vector3 local;
+    };
+    BodyPoint collision_points[] = {// cabin: box at (0, 0.5, 0.8), size (1.8, 1.0, 1.5). Bottom at y=0.0
+                                    {{-0.9f, 0.0f, 0.05f}},
+                                    {{0.9f, 0.0f, 0.05f}},
+                                    {{-0.9f, 0.0f, 1.55f}},
+                                    {{0.9f, 0.0f, 1.55f}},
+                                    // bed: box at (0, 0.3, -0.95), size (1.8, 0.6, 2.0). Bottom at y=0.0
+                                    {{-0.9f, 0.0f, -1.95f}},
+                                    {{0.9f, 0.0f, -1.95f}},
+                                    {{-0.9f, 0.0f, 0.05f}},
+                                    {{0.9f, 0.0f, 0.05f}},
+                                    // hood: box at (0, 0.2, 1.8), size (1.6, 0.4, 0.8). Bottom at y=0.0
+                                    {{-0.8f, 0.0f, 1.4f}},
+                                    {{0.8f, 0.0f, 1.4f}},
+                                    {{-0.8f, 0.0f, 2.2f}},
+                                    {{0.8f, 0.0f, 2.2f}}};
+
+    // simplified collision: just push up if any point is below terrain
+    // We transform points by heading, pitch, and roll
+    float max_penetration = 0.0f;
+    Matrix rotation_mat = MatrixRotateXYZ({state->car_pitch, state->car_heading, state->car_roll});
+
+    for (const auto &p : collision_points) {
+        Vector3 world_p = Vector3Transform(p.local, rotation_mat);
+        world_p = Vector3Add(world_p, state->car_pos);
+        float th = get_terrain_height(world_p.x, world_p.z);
+        if (world_p.y < th) {
+            max_penetration = std::max(max_penetration, th - world_p.y);
+        }
+    }
+    state->car_pos.y += max_penetration;
 
     // update position
     state->car_pos = Vector3Add(state->car_pos, Vector3Scale(state->car_vel, dt));
@@ -277,9 +333,9 @@ void draw_frame(const GameState *state) {
     // cabin: box at (0, 0.5, 0.8), size (1.8, 1.0, 1.5)
     DrawCube({0.0f, 0.5f, 0.8f}, 1.8f, 1.0f, 1.5f, BLUE);
     DrawCubeWires({0.0f, 0.5f, 0.8f}, 1.8f, 1.0f, 1.5f, DARKBLUE);
-    // bed: box at (0, 0.2, -1.2), size (1.8, 0.5, 2.0)
-    DrawCube({0.0f, 0.2f, -1.2f}, 1.8f, 0.5f, 2.0f, DARKBLUE);
-    DrawCubeWires({0.0f, 0.2f, -1.2f}, 1.8f, 0.5f, 2.0f, BLUE);
+    // bed: box at (0, 0.3, -0.95), size (1.8, 0.6, 2.0)
+    DrawCube({0.0f, 0.3f, -0.95f}, 1.8f, 0.6f, 2.0f, BLUE);
+    DrawCubeWires({0.0f, 0.3f, -0.95f}, 1.8f, 0.6f, 2.0f, DARKBLUE);
     // hood: box at (0, 0.2, 1.8), size (1.6, 0.4, 0.8)
     DrawCube({0.0f, 0.2f, 1.8f}, 1.6f, 0.4f, 0.8f, BLUE);
     DrawCubeWires({0.0f, 0.2f, 1.8f}, 1.6f, 0.4f, 0.8f, DARKBLUE);
