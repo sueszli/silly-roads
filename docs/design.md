@@ -22,20 +22,9 @@
 
 ---
 
-## Completed Stages (1-6)
+## Implementation Stages
 
-✅ Stage 1: Car Visual (box replaces ball)  
-✅ Stage 2: Heading Rotation  
-✅ Stage 3: Steering Input (A/D)  
-✅ Stage 4: Arcade Speed Physics  
-✅ Stage 5: Chase Camera  
-✅ Stage 6: Collectible Objectives  
-
----
-
-## Implementation Stages (7+)
-
-### Stage 7: Four-Wheel Ground Snapping
+### Stage 1: Four-Wheel Ground Snapping
 
 **What**: Calculate car height from 4 wheel contact points instead of center.  
 **Why**: Prevents car body clipping into ground on slopes.  
@@ -61,7 +50,7 @@ float wheel_heights[4] = {0}; // FL, FR, RL, RR terrain heights
 
 ---
 
-### Stage 8: Add Wheel Structs
+### Stage 2: Add Wheel Structs
 
 **What**: Add data for 4 wheels to `GameState`.  
 **Why**: Foundation for wheel rendering and steering visuals.  
@@ -91,7 +80,7 @@ WheelState wheels[4] = {
 
 ---
 
-### Stage 9: Render Wheels as Cylinders
+### Stage 3: Render Wheels as Cylinders
 
 **What**: Draw 4 cylinders at wheel positions.  
 **Why**: Visual representation of wheels.  
@@ -110,7 +99,7 @@ WheelState wheels[4] = {
 
 ---
 
-### Stage 10: Wheel Steering Animation
+### Stage 4: Wheel Steering Animation
 
 **What**: Front wheels visually turn when A/D pressed.  
 **Why**: Shows steering input to player.  
@@ -129,7 +118,7 @@ WheelState wheels[4] = {
 
 ---
 
-### Stage 11: Wheel Spin Animation
+### Stage 5: Wheel Spin Animation
 
 **What**: Wheels spin based on car speed.  
 **Why**: Looks more realistic.  
@@ -146,7 +135,7 @@ WheelState wheels[4] = {
 
 ---
 
-### Stage 12: Pickup Truck Body Shape
+### Stage 6: Pickup Truck Body Shape
 
 **What**: Replace single box with multi-box truck shape.  
 **Why**: Looks like a vehicle instead of a brick.  
@@ -165,7 +154,7 @@ WheelState wheels[4] = {
 
 ---
 
-### Stage 13: Road Data Structure
+### Stage 7: Road Data Structure
 
 **What**: Add data for procedural road spline.  
 **Why**: Foundation for rendering road on terrain.  
@@ -189,7 +178,7 @@ bool road_initialized = false;
 
 ---
 
-### Stage 14: Generate Road Points
+### Stage 8: Generate Road Points
 
 **What**: Procedurally generate road control points.  
 **Why**: Creates an interesting path to drive on.  
@@ -208,7 +197,7 @@ bool road_initialized = false;
 
 ---
 
-### Stage 15: Render Road Mesh
+### Stage 9: Render Road Mesh
 
 **What**: Draw the road as a gray strip projected onto terrain.  
 **Why**: Visual road to follow.  
@@ -229,7 +218,7 @@ bool road_initialized = false;
 
 ---
 
-### Stage 16: Road Follows Player
+### Stage 10: Road Follows Player
 
 **What**: Regenerate road around player as they move.  
 **Why**: Infinite procedural road.  
@@ -252,16 +241,16 @@ bool road_initialized = false;
 
 | Stage | Name | Lines | Key Files |
 |-------|------|-------|-----------|
-| 7 | Four-Wheel Ground Snap | ~40 | main.cpp, game_state.hpp |
-| 8 | Wheel Structs | ~20 | game_state.hpp |
-| 9 | Render Wheels | ~30 | main.cpp |
-| 10 | Wheel Steering Animation | ~15 | main.cpp |
-| 11 | Wheel Spin Animation | ~10 | main.cpp |
-| 12 | Pickup Truck Body | ~25 | main.cpp |
-| 13 | Road Data Structure | ~30 | game_state.hpp |
-| 14 | Generate Road Points | ~40 | main.cpp or road.cpp |
-| 15 | Render Road Mesh | ~60 | road.hpp, road.cpp |
-| 16 | Road Follows Player | ~30 | main.cpp, road.cpp |
+| 1 | Four-Wheel Ground Snap | ~40 | main.cpp, game_state.hpp |
+| 2 | Wheel Structs | ~20 | game_state.hpp |
+| 3 | Render Wheels | ~30 | main.cpp |
+| 4 | Wheel Steering Animation | ~15 | main.cpp |
+| 5 | Wheel Spin Animation | ~10 | main.cpp |
+| 6 | Pickup Truck Body | ~25 | main.cpp |
+| 7 | Road Data Structure | ~30 | game_state.hpp |
+| 8 | Generate Road Points | ~40 | main.cpp or road.cpp |
+| 9 | Render Road Mesh | ~60 | road.hpp, road.cpp |
+| 10 | Road Follows Player | ~30 | main.cpp, road.cpp |
 
 **Total**: 10 stages, ~300 lines of incremental changes
 
@@ -269,9 +258,9 @@ bool road_initialized = false;
 
 ## Suggested Implementation Order
 
-**Phase A (Truck Visuals)**: Stages 8 → 9 → 10 → 11 → 12  
+**Phase A (Truck Visuals)**: Stages 1 → 2 → 3 → 4 → 5 → 6  
 **Phase B (Ground Physics)**: Stage 7  
-**Phase C (Road System)**: Stages 13 → 14 → 15 → 16
+**Phase C (Road System)**: Stages 8 → 9 → 10 → 11
 
 Start with Phase A for quick visual payoff, then Phase B for physics fix, then Phase C for road.
 
