@@ -31,46 +31,7 @@ Fields may be omitted if not yet implemented. Example:
 
 ## Implementation Stages
 
-### Stage 0: Establish Logging
-
-**What**: Add a structured log function that prints game state every frame.  
-**Why**: This gives the LLM "sight" to verify future changes.  
-**Size**: ~20 lines changed
-
-**Requirements**:
-1. Add function `void log_state(const GameState* state, std::int32_t frame)` in `main.cpp`
-2. Output format: `[FRAME <n>] POS:<x> <y> <z> | VEL:<x> <y> <z> | GROUND:<0|1>`
-3. Call it at the end of `game_loop_mut`, before `EndDrawing()`
-4. Use `std::printf` with `%.2f` formatting
-
-**Prompt**:
-> Add a `log_state` function that prints the ball's position, velocity, and grounded status each frame in the format: `[FRAME 42] POS:60.12 5.34 60.00 | VEL:0.00 -2.10 0.00 | GROUND:1`. Call it at the end of the game loop. Use `std::printf`.
-
-**Verification**: Run the game, capture 10 lines of stdout. Confirm format matches.
-
----
-
-### Stage 1: Extract GameState to Header
-
-**What**: Move `GameState` struct to its own header file.  
-**Why**: Decouples data definition from logic, enables future modules to include it.  
-**Size**: ~30 lines moved, no logic changes
-
-**Requirements**:
-1. Create `src/game_state.hpp`
-2. Move the `GameState` struct there (including raylib types)
-3. Add `#pragma once` and necessary includes (`raylib.h`)
-4. Update `main.cpp` to `#include "game_state.hpp"`
-5. **No behavior change** - the game must run identically
-
-**Prompt**:
-> Move the `GameState` struct from `main.cpp` to a new file `src/game_state.hpp`. Add the necessary includes. Update `main.cpp` to include it. Ensure the game compiles and runs unchanged.
-
-**Verification**: `make clean && make` succeeds. Run game, log output is identical to Stage 0.
-
----
-
-### Stage 2: Replace Ball with Car Visual
+### Stage 1: Replace Ball with Car Visual
 
 **What**: Change the rendered shape from a sphere to a box (car body placeholder).  
 **Why**: Visual foundation for car before adding physics.  
@@ -89,7 +50,7 @@ Fields may be omitted if not yet implemented. Example:
 
 ---
 
-### Stage 3: Rotate Car by Heading
+### Stage 2: Rotate Car by Heading
 
 **What**: Make the car box rotate visually based on `car_heading`.  
 **Why**: Visual feedback before adding steering physics.  
@@ -107,7 +68,7 @@ Fields may be omitted if not yet implemented. Example:
 
 ---
 
-### Stage 4: Steering Input
+### Stage 3: Steering Input
 
 **What**: A/D keys control `car_heading` instead of directly moving left/right.  
 **Why**: Introduce steering mechanics.  
@@ -126,7 +87,7 @@ Fields may be omitted if not yet implemented. Example:
 
 ---
 
-### Stage 5: Arcade Car Speed
+### Stage 4: Arcade Car Speed
 
 **What**: Replace velocity-based movement with scalar `car_speed` plus heading.  
 **Why**: Arcade cars use speed+heading, not raw velocity vectors.  
@@ -147,7 +108,7 @@ Fields may be omitted if not yet implemented. Example:
 
 ---
 
-### Stage 6: Chase Camera
+### Stage 5: Chase Camera
 
 **What**: Camera follows behind the car based on heading.  
 **Why**: Creates driving game feel.  
@@ -167,7 +128,7 @@ Fields may be omitted if not yet implemented. Example:
 
 ---
 
-### Stage 7: Collectible Objective
+### Stage 6: Collectible Objective
 
 **What**: Spawn a target cylinder. Reaching it increments score.  
 **Why**: Adds gameplay loop.  
@@ -192,16 +153,14 @@ Fields may be omitted if not yet implemented. Example:
 
 | Stage | Name | Lines Changed | Key Files |
 |-------|------|--------------|-----------|
-| 0 | Logging | ~20 | main.cpp |
-| 1 | Extract GameState | ~30 | main.cpp, game_state.hpp (new) |
-| 2 | Car Visual | ~10 | main.cpp |
-| 3 | Heading Rotation | ~15 | main.cpp |
-| 4 | Steering Input | ~20 | main.cpp |
-| 5 | Arcade Speed | ~30 | main.cpp |
-| 6 | Chase Camera | ~25 | main.cpp |
-| 7 | Collectibles | ~40 | main.cpp |
+| 1 | Car Visual | ~10 | main.cpp |
+| 2 | Heading Rotation | ~15 | main.cpp |
+| 3 | Steering Input | ~20 | main.cpp |
+| 4 | Arcade Speed | ~30 | main.cpp |
+| 5 | Chase Camera | ~25 | main.cpp |
+| 6 | Collectibles | ~40 | main.cpp |
 
-**Total**: 8 small stages, ~190 lines of incremental changes
+**Total**: 6 small stages, ~125 lines of incremental changes
 
 ---
 
