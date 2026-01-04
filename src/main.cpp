@@ -312,7 +312,7 @@ void init_road_mut(GameState *state) {
         return;
     }
 
-    // start at origin as per Stage 2 spec
+    // start at origin
     float x = 0.0f;
     float z = 0.0f;
     float angle = 0.0f;
