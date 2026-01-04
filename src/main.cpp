@@ -15,7 +15,6 @@
 // physics
 //
 
-constexpr float BALL_RADIUS = 0.5f;
 constexpr Vector3 PHYS_GRAVITY{0.0f, -500.0f, 0.0f}; // gravitational force
 constexpr float AIR_TIME_GRAVITY_MULTIPLIER = 0.6f;  // reduce gravity in air
 constexpr float PHYS_ACCEL = 200.0f;                 // acceleration per second
@@ -282,7 +281,7 @@ void draw_frame(const GameState *state) {
     DrawText(score_text, 10, 60, 40, YELLOW);
 
     // log state
-    log_state(state, state->frame_count);
+    // log_state(state, state->frame_count);
 
     EndDrawing();
 }
