@@ -15,13 +15,11 @@
 // physics
 //
 
-constexpr Vector3 PHYS_GRAVITY{0.0f, -500.0f, 0.0f}; // gravitational force
-constexpr float AIR_TIME_GRAVITY_MULTIPLIER = 0.6f;  // reduce gravity in air
-constexpr float PHYS_ACCEL = 200.0f;                 // acceleration per second
-constexpr float PHYS_BRAKE = 400.0f;                 // braking/reverse force
-constexpr float PHYS_MAX_SPEED = 120.0f;             // max speed
-constexpr float PHYS_DRAG = 0.98f;                   // drag coefficient
-constexpr float PHYS_TURN_RATE = 2.0f;               // turn rate in rad/s
+constexpr float PHYS_ACCEL = 200.0f;     // acceleration per second
+constexpr float PHYS_BRAKE = 400.0f;     // braking/reverse force
+constexpr float PHYS_MAX_SPEED = 120.0f; // max speed
+constexpr float PHYS_DRAG = 0.98f;       // drag coefficient
+constexpr float PHYS_TURN_RATE = 2.0f;   // turn rate in rad/s
 
 void update_physics_mut(GameState *state) {
     assert(state != nullptr);
@@ -31,11 +29,11 @@ void update_physics_mut(GameState *state) {
     // A/D steering (only when moving)
     if (std::abs(state->car_speed) > 0.5f) {
         float turn_factor = (state->car_speed > 0.0f) ? 1.0f : -1.0f; // reverse steering when going backward
-        if (IsKeyDown(KEY_A)) {
-            state->car_heading += PHYS_TURN_RATE * dt * turn_factor;
-        }
         if (IsKeyDown(KEY_D)) {
             state->car_heading -= PHYS_TURN_RATE * dt * turn_factor;
+        }
+        if (IsKeyDown(KEY_A)) {
+            state->car_heading += PHYS_TURN_RATE * dt * turn_factor;
         }
     }
 
@@ -43,10 +41,10 @@ void update_physics_mut(GameState *state) {
     constexpr float MAX_STEER_ANGLE = 0.52f; // 30 degrees
     constexpr float STEER_LERP_RATE = 8.0f;
     float target_steer = 0.0f;
-    if (IsKeyDown(KEY_A)) {
-        target_steer = MAX_STEER_ANGLE;
-    } else if (IsKeyDown(KEY_D)) {
+    if (IsKeyDown(KEY_D)) {
         target_steer = -MAX_STEER_ANGLE;
+    } else if (IsKeyDown(KEY_A)) {
+        target_steer = MAX_STEER_ANGLE;
     }
     // lerp front wheels toward target
     state->wheels[0].steering_angle += (target_steer - state->wheels[0].steering_angle) * STEER_LERP_RATE * dt;
@@ -84,121 +82,35 @@ void update_physics_mut(GameState *state) {
     state->car_vel.x = std::sin(state->car_heading) * state->car_speed;
     state->car_vel.z = std::cos(state->car_heading) * state->car_speed;
 
-    // 4-wheel ground snapping
-    // offsets: FL(-1, 1.5), FR(1, 1.5), RL(-1, -1.5), RR(1, -1.5)
-    // We rotate these offsets by car_heading to get world positions
-    float s = std::sin(state->car_heading);
-    float c = std::cos(state->car_heading);
-
-    // X, Z offsets
-    float wheel_offsets[4][2] = {
-        {-1.0f, 1.5f},  // FL
-        {1.0f, 1.5f},   // FR
-        {-1.0f, -1.5f}, // RL
-        {1.0f, -1.5f}   // RR
-    };
-
-    float avg_height = 0.0f;
+    // 4-wheel ground snapping (Yaw-only sampling for simplicity)
+    const float s = std::sin(state->car_heading);
+    const float c = std::cos(state->car_heading);
+    float h[4];
+    float avg_h = 0.0f;
     for (int i = 0; i < 4; i++) {
-        float ox = wheel_offsets[i][0];
-        float oz = wheel_offsets[i][1];
-
-        // rotate offset
-        float wx = state->car_pos.x + (ox * c - oz * s);
-        float wz = state->car_pos.z + (ox * s + oz * c);
-
-        state->wheel_heights[i] = get_terrain_height(wx, wz);
-        avg_height += state->wheel_heights[i];
+        const Vector3 off = state->wheels[i].local_offset;
+        const float wx = state->car_pos.x + (off.x * c + off.z * s);
+        const float wz = state->car_pos.z + (-off.x * s + off.z * c);
+        h[i] = get_terrain_height(wx, wz);
+        state->wheel_heights[i] = h[i];
+        avg_h += h[i];
     }
-    avg_height /= 4.0f;
+    avg_h *= 0.25f;
 
-    // Use average height + clearance for ground check
-    float ground_y = avg_height + 0.5f;                        // 0.5f clearance
-    bool is_on_ground = (state->car_pos.y <= ground_y + 0.1f); // small epsilon
+    // smooth position snapping (suspension)
+    state->car_pos.y += (avg_h + 0.5f - state->car_pos.y) * 20.0f * dt;
 
-    // soften gravity if mid-air and holding input
-    Vector3 effective_gravity = PHYS_GRAVITY;
-    if (!is_on_ground && has_input) {
-        effective_gravity = Vector3Scale(PHYS_GRAVITY, AIR_TIME_GRAVITY_MULTIPLIER);
-    }
+    // simple orientation logic
+    const float front_h = (h[0] + h[1]) * 0.5f;
+    const float back_h = (h[2] + h[3]) * 0.5f;
+    const float left_h = (h[0] + h[2]) * 0.5f;
+    const float right_h = (h[1] + h[3]) * 0.5f;
 
-    if (!is_on_ground) {
-        // free fall
-        state->car_vel.y += effective_gravity.y * dt;
+    const float target_pitch = std::atan2(back_h - front_h, 3.0f);
+    const float target_roll = std::atan2(right_h - left_h, 2.0f);
 
-        // airborne: smoothly return to neutral tilt
-        constexpr float AIR_TILT_LERP = 2.0f;
-        state->car_pitch += (0.0f - state->car_pitch) * AIR_TILT_LERP * dt;
-        state->car_roll += (0.0f - state->car_roll) * AIR_TILT_LERP * dt;
-    } else {
-        // ground physics
-        Vector3 terrain_normal = get_terrain_normal(state->car_pos.x, state->car_pos.z);
-
-        // match vertical velocity to slope
-        if (terrain_normal.y > 0.001f) {
-            float slope_y = -(state->car_vel.x * terrain_normal.x + state->car_vel.z * terrain_normal.z) / terrain_normal.y;
-            // only apply if it keeps us above ground or pulling down
-            state->car_vel.y = slope_y;
-        }
-
-        // calculate target pitch/roll from wheel heights
-        // wheel_heights: 0:FL, 1:FR, 2:RL, 3:RR
-        float front_avg = (state->wheel_heights[0] + state->wheel_heights[1]) * 0.5f;
-        float rear_avg = (state->wheel_heights[2] + state->wheel_heights[3]) * 0.5f;
-        float left_avg = (state->wheel_heights[0] + state->wheel_heights[2]) * 0.5f;
-        float right_avg = (state->wheel_heights[1] + state->wheel_heights[3]) * 0.5f;
-
-        // wheelbase ≈ 3.0, track_width ≈ 2.0
-        float target_pitch = std::atan2(rear_avg - front_avg, 3.0f);
-        float target_roll = std::atan2(left_avg - right_avg, 2.0f);
-
-        // smooth tilt
-        constexpr float TILT_LERP = 15.0f;
-        state->car_pitch += (target_pitch - state->car_pitch) * TILT_LERP * dt;
-        state->car_roll += (target_roll - state->car_roll) * TILT_LERP * dt;
-
-        // keep car on surface
-        if (state->car_pos.y < ground_y) {
-            state->car_pos.y = ground_y;
-            if (state->car_vel.y < 0)
-                state->car_vel.y = 0;
-        }
-    }
-
-    // body collision detection (12 points: 4 corners of each of the 3 truck boxes)
-    struct BodyPoint {
-        Vector3 local;
-    };
-    BodyPoint collision_points[] = {// cabin: box at (0, 0.5, 0.8), size (1.8, 1.0, 1.5). Bottom at y=0.0
-                                    {{-0.9f, 0.0f, 0.05f}},
-                                    {{0.9f, 0.0f, 0.05f}},
-                                    {{-0.9f, 0.0f, 1.55f}},
-                                    {{0.9f, 0.0f, 1.55f}},
-                                    // bed: box at (0, 0.3, -0.95), size (1.8, 0.6, 2.0). Bottom at y=0.0
-                                    {{-0.9f, 0.0f, -1.95f}},
-                                    {{0.9f, 0.0f, -1.95f}},
-                                    {{-0.9f, 0.0f, 0.05f}},
-                                    {{0.9f, 0.0f, 0.05f}},
-                                    // hood: box at (0, 0.2, 1.8), size (1.6, 0.4, 0.8). Bottom at y=0.0
-                                    {{-0.8f, 0.0f, 1.4f}},
-                                    {{0.8f, 0.0f, 1.4f}},
-                                    {{-0.8f, 0.0f, 2.2f}},
-                                    {{0.8f, 0.0f, 2.2f}}};
-
-    // simplified collision: just push up if any point is below terrain
-    // We transform points by heading, pitch, and roll
-    float max_penetration = 0.0f;
-    Matrix rotation_mat = MatrixRotateXYZ({state->car_pitch, state->car_heading, state->car_roll});
-
-    for (const auto &p : collision_points) {
-        Vector3 world_p = Vector3Transform(p.local, rotation_mat);
-        world_p = Vector3Add(world_p, state->car_pos);
-        float th = get_terrain_height(world_p.x, world_p.z);
-        if (world_p.y < th) {
-            max_penetration = std::max(max_penetration, th - world_p.y);
-        }
-    }
-    state->car_pos.y += max_penetration;
+    state->car_pitch += (target_pitch - state->car_pitch) * 15.0f * dt;
+    state->car_roll += (target_roll - state->car_roll) * 15.0f * dt;
 
     // update position
     state->car_pos = Vector3Add(state->car_pos, Vector3Scale(state->car_vel, dt));
@@ -236,15 +148,7 @@ void generate_terrain_mesh_mut(GameState *state) {
 
 void log_state(const GameState *state, std::int32_t frame) {
     assert(state != nullptr);
-    float avg_height = 0.0f;
-    for (int i = 0; i < 4; ++i)
-        avg_height += state->wheel_heights[i];
-    avg_height /= 4.0f;
-
-    // float terrain_h = get_terrain_height(state->car_pos.x, state->car_pos.z);
-    bool is_on_ground = (state->car_pos.y <= avg_height + 0.5f + 0.1f); // 0.5 clearance + epsilon
-
-    std::printf("[FRAME %d] CAR_POS:%.2f %.2f %.2f | SPEED:%.2f | HEADING:%.2f | GROUND:%d | WHEEL_STEER:%.2f\n", frame, state->car_pos.x, state->car_pos.y, state->car_pos.z, state->car_speed, state->car_heading, is_on_ground ? 1 : 0, state->wheels[0].steering_angle);
+    std::printf("[FRAME %d] CAR_POS:%.2f %.2f %.2f | SPEED:%.2f | HEADING:%.2f | PITCH:%.2f | ROLL:%.2f | WHEEL_STEER:%.2f\n", frame, state->car_pos.x, state->car_pos.y, state->car_pos.z, state->car_speed, state->car_heading, state->car_pitch, state->car_roll, state->wheels[0].steering_angle);
 }
 
 //
@@ -328,6 +232,8 @@ void draw_frame(const GameState *state) {
     rlPushMatrix();
     rlTranslatef(state->car_pos.x, state->car_pos.y, state->car_pos.z);
     rlRotatef(state->car_heading * RAD2DEG, 0.0f, 1.0f, 0.0f);
+    rlRotatef(state->car_pitch * RAD2DEG, 1.0f, 0.0f, 0.0f);
+    rlRotatef(state->car_roll * RAD2DEG, 0.0f, 0.0f, 1.0f);
 
     // pickup truck body (multi-box shape)
     // cabin: box at (0, 0.5, 0.8), size (1.8, 1.0, 1.5)
