@@ -24,137 +24,7 @@
 
 ## Implementation Stages
 
-### Stage 1: Four-Wheel Ground Snapping
-
-**What**: Calculate car height from 4 wheel contact points instead of center.  
-**Why**: Prevents car body clipping into ground on slopes.  
-**Size**: ~40 lines
-
-**Technical Approach**:
-- Define 4 wheel offsets in local car space: front-left, front-right, rear-left, rear-right
-- Each frame, calculate world positions of wheel contact points using `car_pos` + rotated offset
-- Sample `get_terrain_height()` at each wheel position
-- Set `car_pos.y` = average of 4 heights + body clearance (e.g., 0.5 units)
-- Calculate car pitch/roll from height differences (optional for later)
-
-**State Changes**:
-```cpp
-// Add to GameState
-float wheel_heights[4] = {0}; // FL, FR, RL, RR terrain heights
-```
-
-**Prompt**:
-> Fix car ground clipping: instead of sampling terrain height at car center, sample at 4 wheel positions (offsets: ±1.0 X, ±1.5 Z from center). Average the 4 heights and add 0.5 clearance for `car_pos.y`. Store wheel heights in `GameState::wheel_heights[4]` for later use. Keep airtime logic: only snap when close to ground.
-
-**Verification**: Drive over bumpy terrain. Car body should stay above ground. Log `GROUND:1` when all 4 wheels touch.
-
----
-
-### Stage 2: Add Wheel Structs
-
-**What**: Add data for 4 wheels to `GameState`.  
-**Why**: Foundation for wheel rendering and steering visuals.  
-**Size**: ~20 lines
-
-**State Changes** (in `game_state.hpp`):
-```cpp
-struct WheelState {
-    Vector3 local_offset;  // position relative to car body
-    float steering_angle;  // only non-zero for front wheels
-    float spin_angle;      // rotation from rolling
-};
-
-// Add to GameState
-WheelState wheels[4] = {
-    {{-1.0f, -0.3f, 1.5f}, 0.0f, 0.0f},   // front-left
-    {{ 1.0f, -0.3f, 1.5f}, 0.0f, 0.0f},   // front-right
-    {{-1.0f, -0.3f, -1.5f}, 0.0f, 0.0f},  // rear-left
-    {{ 1.0f, -0.3f, -1.5f}, 0.0f, 0.0f},  // rear-right
-};
-```
-
-**Prompt**:
-> Add `WheelState` struct with `local_offset`, `steering_angle`, and `spin_angle`. Add `wheels[4]` array to `GameState` with offsets for a 2x4 unit car body. Front wheels at Z=+1.5, rear at Z=-1.5. X offset ±1.0. Y offset -0.3 (below body).
-
-**Verification**: Code compiles. No visual changes yet.
-
----
-
-### Stage 3: Render Wheels as Cylinders
-
-**What**: Draw 4 cylinders at wheel positions.  
-**Why**: Visual representation of wheels.  
-**Size**: ~30 lines
-
-**Requirements**:
-1. For each wheel, calculate world position: `car_pos` + (wheel offset rotated by `car_heading`)
-2. Draw horizontal cylinder (wheel) at each position
-3. Cylinder size: radius 0.3, height 0.2
-4. Use `rlPushMatrix`, `rlRotatef` to orient wheel
-
-**Prompt**:
-> Render 4 wheels as dark gray cylinders (radius 0.3, width 0.2). For each wheel: compute world position from `car_pos` + rotated offset, apply `car_heading` rotation, then draw cylinder oriented along X-axis. Use `DrawCylinder` with appropriate transforms.
-
-**Verification**: Run game. 4 gray cylinders should appear at wheel positions, rotating with car.
-
----
-
-### Stage 4: Wheel Steering Animation
-
-**What**: Front wheels visually turn when A/D pressed.  
-**Why**: Shows steering input to player.  
-**Size**: ~15 lines
-
-**Requirements**:
-1. When A/D pressed, update `wheels[0].steering_angle` and `wheels[1].steering_angle`
-2. Max steering angle: ±30° (0.52 rad)
-3. Smooth interpolation toward target angle
-4. Apply steering rotation to front wheel cylinders when drawing
-
-**Prompt**:
-> Animate front wheel steering: when A pressed, target `steering_angle` = +0.52 rad; D = -0.52 rad; neither = 0. Lerp current toward target at rate 8.0/s. Apply this rotation around Y-axis when drawing front wheels. Rear wheels stay at 0. Log `WHEEL_STEER:<rad>`.
-
-**Verification**: Run game. Press A/D - front wheels should visibly turn. Log shows steering angle.
-
----
-
-### Stage 5: Wheel Spin Animation -> SKIPPED
-
-**What**: Wheels spin based on car speed.  
-**Why**: Looks more realistic.  
-**Size**: ~10 lines
-
-**Requirements**:
-1. Update `spin_angle` based on `car_speed * dt / wheel_radius`
-2. Apply spin rotation around X-axis when drawing wheel
-
-**Prompt**:
-> Spin wheels based on speed: `spin_angle += car_speed * dt / 0.3f` (0.3 = wheel radius). Apply rotation around local X-axis when rendering. Keep angle bounded using modulo or wrapping.
-
-**Verification**: Run game. Wheels should spin forward when moving forward, backward when reversing.
-
----
-
-### Stage 6: Pickup Truck Body Shape
-
-**What**: Replace single box with multi-box truck shape.  
-**Why**: Looks like a vehicle instead of a brick.  
-**Size**: ~25 lines
-
-**Truck Model** (all local coordinates):
-- **Cabin**: Box at (0, 0.5, 0.8), size (1.8, 1.0, 1.5) - BLUE
-- **Bed**: Box at (0, 0.2, -1.2), size (1.8, 0.5, 2.0) - DARKBLUE
-- **Hood**: Box at (0, 0.2, 1.8), size (1.6, 0.4, 0.8) - BLUE
-- Remove old single red box
-
-**Prompt**:
-> Replace single red box with pickup truck shape. Draw 3 boxes (cabin, bed, hood) with offsets listed above. Use BLUE for cabin/hood, DARKBLUE for bed. Keep same rotation transform. Add wire outlines for definition.
-
-**Verification**: Run game. Should see blocky pickup truck shape. Wheels should still be attached correctly.
-
----
-
-### Stage 7: Road Data Structure
+### Stage 1: Road Data Structure
 
 **What**: Add data for procedural road spline.  
 **Why**: Foundation for rendering road on terrain.  
@@ -178,7 +48,7 @@ bool road_initialized = false;
 
 ---
 
-### Stage 8: Generate Road Points
+### Stage 2: Generate Road Points
 
 **What**: Procedurally generate road control points.  
 **Why**: Creates an interesting path to drive on.  
@@ -197,7 +67,7 @@ bool road_initialized = false;
 
 ---
 
-### Stage 9: Render Road Mesh
+### Stage 3: Render Road Mesh
 
 **What**: Draw the road as a gray strip projected onto terrain.  
 **Why**: Visual road to follow.  
@@ -218,7 +88,7 @@ bool road_initialized = false;
 
 ---
 
-### Stage 10: Road Follows Player
+### Stage 4: Road Follows Player
 
 **What**: Regenerate road around player as they move.  
 **Why**: Infinite procedural road.  
@@ -241,16 +111,10 @@ bool road_initialized = false;
 
 | Stage | Name | Lines | Key Files |
 |-------|------|-------|-----------|
-| 1 | Four-Wheel Ground Snap | ~40 | main.cpp, game_state.hpp |
-| 2 | Wheel Structs | ~20 | game_state.hpp |
-| 3 | Render Wheels | ~30 | main.cpp |
-| 4 | Wheel Steering Animation | ~15 | main.cpp |
-| 5 | Wheel Spin Animation | ~10 | main.cpp |
-| 6 | Pickup Truck Body | ~25 | main.cpp |
-| 7 | Road Data Structure | ~30 | game_state.hpp |
-| 8 | Generate Road Points | ~40 | main.cpp or road.cpp |
-| 9 | Render Road Mesh | ~60 | road.hpp, road.cpp |
-| 10 | Road Follows Player | ~30 | main.cpp, road.cpp |
+| 1 | Road Data Structure | ~30 | game_state.hpp |
+| 2 | Generate Road Points | ~40 | main.cpp or road.cpp |
+| 3 | Render Road Mesh | ~60 | road.hpp, road.cpp |
+| 4 | Road Follows Player | ~30 | main.cpp, road.cpp |
 
 **Total**: 10 stages, ~300 lines of incremental changes
 
