@@ -13,6 +13,12 @@
 #include <vector>
 
 //
+// forward declarations
+//
+
+void update_road_mut(GameState *state);
+
+//
 // physics
 //
 
@@ -154,7 +160,7 @@ void generate_road_mesh_mut(GameState *state) {
     if (state->road_mesh_generated) {
         UnloadModel(state->road_model);
     }
-    state->road_mesh = generate_road_mesh(state->road_points, GameState::ROAD_POINTS);
+    state->road_mesh = generate_road_mesh(state->road_points, GameState::ROAD_WINDOW_SIZE);
     UploadMesh(&state->road_mesh, false);
     state->road_model = LoadModelFromMesh(state->road_mesh);
     state->road_model.materials[0].maps[MATERIAL_MAP_DIFFUSE].color = BROWN;
@@ -286,8 +292,84 @@ void game_loop_mut(GameState *state) {
     assert(state != nullptr);
     update_terrain_mut(state);
     update_physics_mut(state);
+    update_road_mut(state);
     update_camera_mut(state);
     draw_frame(state);
+}
+
+//
+// road
+//
+
+Vector3 generate_next_road_point_mut(GameState *state) {
+    assert(state != nullptr);
+    const float step_size = 20.0f;
+
+    // use stored state for continuous generation
+    float x = state->road_gen_x;
+    float z = state->road_gen_z;
+    float angle = state->road_gen_angle;
+    std::int32_t segment_index = state->road_gen_next_segment;
+
+    // advance position
+    if (segment_index > 0) {
+        x += std::cos(angle) * step_size;
+        z += std::sin(angle) * step_size;
+    }
+
+    // deterministic "noise" for winding path
+    float noise = std::sin((float)segment_index * 0.3f) * 0.5f + std::cos((float)segment_index * 0.17f) * 0.3f;
+    angle += noise * 0.2f;
+
+    // update state for next call
+    state->road_gen_x = x;
+    state->road_gen_z = z;
+    state->road_gen_angle = angle;
+    state->road_gen_next_segment = segment_index + 1;
+
+    float y = get_terrain_height(x, z);
+    return {x, y, z};
+}
+
+void update_road_mut(GameState *state) {
+    assert(state != nullptr);
+    if (!state->road_initialized) {
+        return;
+    }
+
+    // find closest road point to car
+    int closest_idx = 0;
+    float min_dist_sq = 1e9f;
+    for (int i = 0; i < GameState::ROAD_WINDOW_SIZE; i++) {
+        Vector3 to_car = Vector3Subtract(state->car_pos, state->road_points[i]);
+        float dist_sq = to_car.x * to_car.x + to_car.z * to_car.z; // ignore Y
+        if (dist_sq < min_dist_sq) {
+            min_dist_sq = dist_sq;
+            closest_idx = i;
+        }
+    }
+
+    // if car has progressed past threshold, shift window forward
+    const int shift_threshold = GameState::ROAD_WINDOW_SIZE / 4;
+    if (closest_idx > shift_threshold) {
+        int shift_amount = shift_threshold;
+
+        // move existing points back in array
+        for (int i = 0; i < GameState::ROAD_WINDOW_SIZE - shift_amount; i++) {
+            state->road_points[i] = state->road_points[i + shift_amount];
+        }
+
+        // generate new points at the end using incremental generation
+        for (int i = GameState::ROAD_WINDOW_SIZE - shift_amount; i < GameState::ROAD_WINDOW_SIZE; i++) {
+            state->road_points[i] = generate_next_road_point_mut(state);
+        }
+
+        state->road_start_segment += shift_amount;
+
+        // regenerate mesh
+        generate_road_mesh_mut(state);
+        std::printf("[ROAD] Shifted window, start_segment=%d\n", state->road_start_segment);
+    }
 }
 
 void init_road_mut(GameState *state) {
@@ -296,30 +378,22 @@ void init_road_mut(GameState *state) {
         return;
     }
 
-    // start at origin
-    float x = 0.0f;
-    float z = 0.0f;
-    float angle = 0.0f;
-    const float step_size = 20.0f;
+    // initialize generation state
+    state->road_gen_x = 0.0f;
+    state->road_gen_z = 0.0f;
+    state->road_gen_angle = 0.0f;
+    state->road_gen_next_segment = 0;
 
-    for (int i = 0; i < GameState::ROAD_POINTS; i++) {
-        state->road_points[i] = {x, 0.0f, z};
-        state->road_points[i].y = get_terrain_height(x, z);
-
-        // move forward in a winding path
-        // use a combination of base curvature for the loop and "noise" for winding
-        float base_turn = (2.0f * PI) / GameState::ROAD_POINTS;
-        // simple deterministic "noise" using sine waves
-        float noise = std::sin((float)i * 0.5f) * 0.3f + std::sin((float)i * 0.2f) * 0.2f;
-        angle += base_turn + noise * 0.3f;
-
-        x += std::cos(angle) * step_size;
-        z += std::sin(angle) * step_size;
+    // generate initial window of road points
+    for (int i = 0; i < GameState::ROAD_WINDOW_SIZE; i++) {
+        state->road_points[i] = generate_next_road_point_mut(state);
     }
 
+    state->road_start_segment = 0;
+    state->road_progress = 0.0f;
     state->road_initialized = true;
     generate_road_mesh_mut(state);
-    std::printf("[ROAD] Generated %d points\n", GameState::ROAD_POINTS);
+    std::printf("[ROAD] Generated initial window of %d points\n", GameState::ROAD_WINDOW_SIZE);
 }
 
 std::int32_t main() {

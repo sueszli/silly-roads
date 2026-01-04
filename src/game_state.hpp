@@ -44,9 +44,21 @@ struct GameState {
 
     std::int32_t frame_count = 0;
 
-    static constexpr std::int32_t ROAD_POINTS = 64;
-    Vector3 road_points[ROAD_POINTS] = {}; // control points
+    //
+    // road
+    //
+
+    static constexpr std::int32_t ROAD_WINDOW_SIZE = 128; // sliding window of road points
+    Vector3 road_points[ROAD_WINDOW_SIZE] = {};           // control points
+    std::int32_t road_start_segment = 0;                  // global segment index of first point
+    float road_progress = 0.0f;                           // car's progress along road (in segments)
     bool road_initialized = false;
+
+    // road generation state (for continuous generation)
+    float road_gen_x = 0.0f;                // last generated x position
+    float road_gen_z = 0.0f;                // last generated z position
+    float road_gen_angle = 0.0f;            // last generated angle
+    std::int32_t road_gen_next_segment = 0; // next segment to generate
 
     // road rendering
     Mesh road_mesh = {};
