@@ -12,8 +12,8 @@
 namespace {
 
 constexpr float BALL_RADIUS = 0.5f;
-constexpr Vector3 PHYS_GRAVITY{0.0f, -150.0f, 0.0f}; // gravitational force
-constexpr float PHYS_MOVE_FORCE = 80.0f;             // player control force
+constexpr Vector3 PHYS_GRAVITY{0.0f, -200.0f, 0.0f}; // gravitational force
+constexpr float PHYS_MOVE_FORCE = 400.0f;            // directional speed by player
 constexpr float PHYS_DRAG = 0.98f;                   // drag coefficient
 
 struct GameState {
@@ -88,18 +88,56 @@ void update_physics_mut(GameState *state, float dt) {
     cam_right = Vector3Normalize(cam_right);
 
     Vector3 input_dir = {0.0f, 0.0f, 0.0f};
-    if (IsKeyDown(KEY_W))
+    if (IsKeyDown(KEY_W)) {
         input_dir = Vector3Add(input_dir, cam_fwd);
-    if (IsKeyDown(KEY_S))
+    }
+    if (IsKeyDown(KEY_S)) {
         input_dir = Vector3Subtract(input_dir, cam_fwd);
-    if (IsKeyDown(KEY_A))
+    }
+    if (IsKeyDown(KEY_A)) {
         input_dir = Vector3Subtract(input_dir, cam_right);
-    if (IsKeyDown(KEY_D))
+    }
+    if (IsKeyDown(KEY_D)) {
         input_dir = Vector3Add(input_dir, cam_right);
+    }
 
     if (Vector3Length(input_dir) > 0.1f) {
         input_dir = Vector3Normalize(input_dir);
         state->ball_vel = Vector3Add(state->ball_vel, Vector3Scale(input_dir, PHYS_MOVE_FORCE * dt));
+    }
+
+    // when on ground and moving uphill, project velocity onto terrain surface
+    // this makes the ball gain upward velocity when going over slopes/peaks
+    // but allows natural falling in valleys
+    if (on_ground) {
+        Vector3 terrain_normal = get_terrain_normal(state->ball_pos.x, state->ball_pos.z);
+
+        // get horizontal velocity magnitude
+        Vector3 vel_horizontal = state->ball_vel;
+        vel_horizontal.y = 0.0f;
+        float horizontal_speed = Vector3Length(vel_horizontal);
+
+        // if moving horizontally, check if we're going uphill
+        if (horizontal_speed > 0.1f) {
+            Vector3 horizontal_dir = Vector3Normalize(vel_horizontal);
+
+            // project horizontal direction onto terrain surface
+            float dot = Vector3DotProduct(horizontal_dir, terrain_normal);
+            Vector3 surface_dir = Vector3Subtract(horizontal_dir, Vector3Scale(terrain_normal, dot));
+
+            // only redirect if we have a valid surface direction AND we're going uphill
+            // check if surface direction points upward (positive y component)
+            if (Vector3Length(surface_dir) > 0.01f) {
+                surface_dir = Vector3Normalize(surface_dir);
+
+                // only apply if the surface direction has an upward component
+                // this prevents the ball from sticking to valleys
+                if (surface_dir.y > 0.0f) {
+                    // apply horizontal speed along the terrain surface
+                    state->ball_vel = Vector3Scale(surface_dir, horizontal_speed);
+                }
+            }
+        }
     }
 
     // update position from velocity
@@ -109,11 +147,11 @@ void update_physics_mut(GameState *state, float dt) {
     terrain_h = get_terrain_height(state->ball_pos.x, state->ball_pos.z);
     on_ground = (state->ball_pos.y <= terrain_h + BALL_RADIUS);
 
-    if (on_ground) {
+    // only apply ground collision if ball is moving into the ground
+    // this allows the ball to launch off hills naturally
+    if (on_ground && state->ball_vel.y <= 0.0f) {
         state->ball_pos.y = terrain_h + BALL_RADIUS;
-        if (state->ball_vel.y < 0.0f) {
-            state->ball_vel.y = 0.0f;
-        }
+        state->ball_vel.y = 0.0f;
     }
 
     // apply drag
@@ -122,7 +160,6 @@ void update_physics_mut(GameState *state, float dt) {
 
 void game_loop_mut(GameState *state) {
     assert(state != nullptr);
-
     // lazy init of terrain
     if (!state->mesh_generated) {
         generate_terrain_mesh_mut(state);
@@ -170,15 +207,15 @@ void game_loop_mut(GameState *state) {
 
 std::int32_t main() {
     InitWindow(800, 450, "raycer");
-    SetTargetFPS(60);
+    SetTargetFPS(240);
 
     GameState state{};
 
-    // large stripe texture for the terrain (easier on eyes at high speeds)
+    // terrain texture
     Image stripes = GenImageColor(256, 256, DARKGREEN);
     for (int y = 0; y < 256; y++) {
         for (int x = 0; x < 256; x++) {
-            // create horizontal stripes every 64 pixels
+            // horizontal stripes every 64 pixels
             if ((y / 64) % 2 == 0) {
                 ImageDrawPixel(&stripes, x, y, GREEN);
             }

@@ -58,3 +58,7 @@ lint:
 fmt:
 	uvx --from cmakelang cmake-format --dangle-parens --line-width 500 -i CMakeLists.txt
 	find . -type f -not -path '*/build/*' \( -name "*.cpp" -o -name "*.hpp" \) | xargs clang-format -i
+
+.PHONY: up
+up: fmt lint
+	git add . && git commit -m up && git push
