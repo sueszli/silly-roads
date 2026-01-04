@@ -281,7 +281,7 @@ void draw_frame(const GameState *state) {
     DrawText(score_text, 10, 60, 40, YELLOW);
 
     // log state
-    // log_state(state, state->frame_count);
+    log_state(state, state->frame_count);
 
     EndDrawing();
 }
