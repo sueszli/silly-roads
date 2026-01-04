@@ -6,15 +6,14 @@
 #include <cassert>
 #include <cmath>
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
 #include <vector>
 
-namespace {
-
 constexpr float BALL_RADIUS = 0.5f;
-constexpr Vector3 PHYS_GRAVITY{0.0f, -200.0f, 0.0f}; // gravitational force
-constexpr float PHYS_MOVE_FORCE = 400.0f;            // directional speed by player
-constexpr float PHYS_DRAG = 0.98f;                   // drag coefficient
+constexpr Vector3 PHYS_GRAVITY{0.0f, -1000.0f, 0.0f}; // gravitational force
+constexpr float PHYS_MOVE_FORCE = 2000.0f;            // directional speed by player
+constexpr float PHYS_DRAG = 0.98f;                    // drag coefficient
 
 struct GameState {
     Vector3 ball_pos = {60.0f, 20.0f, 60.0f};
@@ -39,9 +38,9 @@ struct GameState {
 void generate_terrain_mesh_mut(GameState *state) {
     assert(state != nullptr);
 
-    // clean up previous mesh if it exists
-    if (state->terrain_mesh.vertexCount > 0) {
-        UnloadMesh(state->terrain_mesh);
+    // clean up previous model (including mesh and materials) if it exists
+    if (state->mesh_generated) {
+        UnloadModel(state->terrain_model);
     }
 
     state->terrain_mesh = generate_terrain_mesh_data(state->terrain_offset_x, state->terrain_offset_z);
@@ -192,40 +191,36 @@ void game_loop_mut(GameState *state) {
     // render
     BeginDrawing();
     ClearBackground(SKYBLUE);
-    DrawFPS(10, 10);
 
     BeginMode3D(state->camera);
-
     DrawModel(state->terrain_model, {state->terrain_offset_x, 0.0f, state->terrain_offset_z}, 1.0f, WHITE);
     DrawSphere(state->ball_pos, BALL_RADIUS, RED);
-
     EndMode3D();
+
+    char pos_text[64];
+    std::snprintf(pos_text, sizeof(pos_text), "X: %.2f Y: %.2f Z: %.2f", state->ball_pos.x, state->ball_pos.y, state->ball_pos.z);
+    DrawText(pos_text, 10, 30, 20, BLACK);
+    std::printf("%s\n", pos_text);
+
     EndDrawing();
 }
 
-} // namespace
+Texture2D load_texture() {
+    Image checked = GenImageChecked(256, 256, 128, 128, DARKGREEN, GREEN);
+    Texture2D texture = LoadTextureFromImage(checked);
+    assert(texture.id != 0);
+    UnloadImage(checked);
+    return texture;
+}
 
 std::int32_t main() {
     InitWindow(800, 450, "raycer");
     SetTargetFPS(240);
 
     GameState state{};
+    state.texture = load_texture();
 
-    // terrain texture
-    Image stripes = GenImageColor(256, 256, DARKGREEN);
-    for (int y = 0; y < 256; y++) {
-        for (int x = 0; x < 256; x++) {
-            // horizontal stripes every 64 pixels
-            if ((y / 64) % 2 == 0) {
-                ImageDrawPixel(&stripes, x, y, GREEN);
-            }
-        }
-    }
-    Texture2D texture = LoadTextureFromImage(stripes);
-    assert(texture.id != 0);
-    UnloadImage(stripes);
-    state.texture = texture;
-
+    // game loop
     while (!WindowShouldClose()) {
         game_loop_mut(&state);
     }
