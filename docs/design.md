@@ -104,36 +104,3 @@ bool road_initialized = false;
 > Track which road segment player is nearest. When player passes point 32, shift array: move points 32-63 to 0-31, generate new points at 32-63. Regenerate road mesh. Log `[ROAD] Extended`.
 
 **Verification**: Drive along road. Road should extend ahead infinitely. Log shows extension messages.
-
----
-
-## Summary Table
-
-| Stage | Name | Lines | Key Files |
-|-------|------|-------|-----------|
-| 1 | Road Data Structure | ~30 | game_state.hpp |
-| 2 | Generate Road Points | ~40 | main.cpp or road.cpp |
-| 3 | Render Road Mesh | ~60 | road.hpp, road.cpp |
-| 4 | Road Follows Player | ~30 | main.cpp, road.cpp |
-
-**Total**: 10 stages, ~300 lines of incremental changes
-
----
-
-## Suggested Implementation Order
-
-**Phase A (Truck Visuals)**: Stages 1 → 2 → 3 → 4 → 5 → 6  
-**Phase B (Ground Physics)**: Stage 7  
-**Phase C (Road System)**: Stages 8 → 9 → 10 → 11
-
-Start with Phase A for quick visual payoff, then Phase B for physics fix, then Phase C for road.
-
----
-
-## Notes for LLM Developers
-
-1. **One stage at a time**: Complete verification before proceeding
-2. **Read the log**: stdout is your primary debugging tool
-3. **Compile often**: `make lint && make run` after each change
-4. **Remove collectibles**: After Stage 16, consider removing the yellow cylinder objective in favor of road-following
-5. **Rollback on failure**: If a stage breaks, revert and retry with smaller steps

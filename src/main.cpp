@@ -276,8 +276,6 @@ void draw_frame(const GameState *state) {
     // game stats
     char pos_text[64];
     std::snprintf(pos_text, sizeof(pos_text), "X: %.2f Y: %.2f Z: %.2f", state->car_pos.x, state->car_pos.y, state->car_pos.z);
-    DrawText(pos_text, 10, 30, 30, BLACK);
-
     char score_text[32];
     std::snprintf(score_text, sizeof(score_text), "SCORE: %d", state->score);
     DrawText(score_text, 10, 60, 40, YELLOW);
@@ -314,23 +312,29 @@ void init_road_mut(GameState *state) {
         return;
     }
 
-    // start near car
-    float x = state->car_pos.x;
-    float z = state->car_pos.z;
+    // start at origin as per Stage 2 spec
+    float x = 0.0f;
+    float z = 0.0f;
     float angle = 0.0f;
+    const float step_size = 20.0f;
 
     for (int i = 0; i < GameState::ROAD_POINTS; i++) {
         state->road_points[i] = {x, 0.0f, z};
         state->road_points[i].y = get_terrain_height(x, z);
 
         // move forward in a winding path
-        angle += 0.2f;
-        x += std::cos(angle) * 10.0f;
-        z += std::sin(angle) * 10.0f;
+        // use a combination of base curvature for the loop and "noise" for winding
+        float base_turn = (2.0f * PI) / GameState::ROAD_POINTS;
+        // simple deterministic "noise" using sine waves
+        float noise = std::sin(i * 0.5f) * 0.3f + std::sin(i * 0.2f) * 0.2f;
+        angle += base_turn + noise * 0.3f;
+
+        x += std::cos(angle) * step_size;
+        z += std::sin(angle) * step_size;
     }
 
     state->road_initialized = true;
-    std::printf("[ROAD] Initialized %d points\n", GameState::ROAD_POINTS);
+    std::printf("[ROAD] Generated %d points\n", GameState::ROAD_POINTS);
 }
 
 std::int32_t main() {
