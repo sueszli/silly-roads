@@ -39,6 +39,22 @@ void update_physics_mut(GameState *state) {
         }
     }
 
+    // wheel steering animation
+    constexpr float MAX_STEER_ANGLE = 0.52f; // 30 degrees
+    constexpr float STEER_LERP_RATE = 8.0f;
+    float target_steer = 0.0f;
+    if (IsKeyDown(KEY_A)) {
+        target_steer = MAX_STEER_ANGLE;
+    } else if (IsKeyDown(KEY_D)) {
+        target_steer = -MAX_STEER_ANGLE;
+    }
+    // lerp front wheels toward target
+    state->wheels[0].steering_angle += (target_steer - state->wheels[0].steering_angle) * STEER_LERP_RATE * dt;
+    state->wheels[1].steering_angle += (target_steer - state->wheels[1].steering_angle) * STEER_LERP_RATE * dt;
+    // rear wheels always 0
+    state->wheels[2].steering_angle = 0.0f;
+    state->wheels[3].steering_angle = 0.0f;
+
     // W/S drive force
     bool has_input = false;
     if (IsKeyDown(KEY_W)) {
@@ -172,7 +188,7 @@ void log_state(const GameState *state, std::int32_t frame) {
     // float terrain_h = get_terrain_height(state->car_pos.x, state->car_pos.z);
     bool is_on_ground = (state->car_pos.y <= avg_height + 0.5f + 0.1f); // 0.5 clearance + epsilon
 
-    std::printf("[FRAME %d] CAR_POS:%.2f %.2f %.2f | CAR_VEL:%.2f %.2f %.2f | SPEED:%.2f | HEADING:%.2f | GROUND:%d\n", frame, state->car_pos.x, state->car_pos.y, state->car_pos.z, state->car_vel.x, state->car_vel.y, state->car_vel.z, state->car_speed, state->car_heading, is_on_ground ? 1 : 0);
+    std::printf("[FRAME %d] CAR_POS:%.2f %.2f %.2f | SPEED:%.2f | HEADING:%.2f | GROUND:%d | WHEEL_STEER:%.2f\n", frame, state->car_pos.x, state->car_pos.y, state->car_pos.z, state->car_speed, state->car_heading, is_on_ground ? 1 : 0, state->wheels[0].steering_angle);
 }
 
 //
@@ -261,10 +277,19 @@ void draw_frame(const GameState *state) {
 
     // draw wheels (4 dark gray cylinders)
     for (int i = 0; i < 4; i++) {
+        rlPushMatrix();
         Vector3 wheel_center = state->wheels[i].local_offset;
-        Vector3 wheel_start = {wheel_center.x - 0.1f, wheel_center.y, wheel_center.z};
-        Vector3 wheel_end = {wheel_center.x + 0.1f, wheel_center.y, wheel_center.z};
+        rlTranslatef(wheel_center.x, wheel_center.y, wheel_center.z);
+
+        // apply steering rotation to front wheels
+        if (i < 2) { // front wheels
+            rlRotatef(state->wheels[i].steering_angle * RAD2DEG, 0.0f, 1.0f, 0.0f);
+        }
+
+        Vector3 wheel_start = {-0.1f, 0.0f, 0.0f};
+        Vector3 wheel_end = {0.1f, 0.0f, 0.0f};
         DrawCylinderEx(wheel_start, wheel_end, 0.3f, 0.3f, 16, DARKGRAY);
+        rlPopMatrix();
     }
 
     rlPopMatrix();
