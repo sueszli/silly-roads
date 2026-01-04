@@ -343,7 +343,7 @@ void init_road_mut(GameState *state) {
         // use a combination of base curvature for the loop and "noise" for winding
         float base_turn = (2.0f * PI) / GameState::ROAD_POINTS;
         // simple deterministic "noise" using sine waves
-        float noise = std::sin(i * 0.5f) * 0.3f + std::sin(i * 0.2f) * 0.2f;
+        float noise = std::sin((float)i * 0.5f) * 0.3f + std::sin((float)i * 0.2f) * 0.2f;
         angle += base_turn + noise * 0.3f;
 
         x += std::cos(angle) * step_size;
@@ -371,6 +371,7 @@ std::int32_t main() {
 
     // cleanup
     UnloadModel(state.terrain_model);
+    UnloadModel(state.road_model);
     UnloadTexture(state.texture);
     CloseWindow();
 

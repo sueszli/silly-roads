@@ -19,9 +19,10 @@ Vector3 catmull_rom(Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3, float t) {
 } // namespace
 
 Mesh generate_road_mesh(const Vector3 *points, std::int32_t count) {
-    Mesh mesh = {0};
-    if (count < 2)
+    Mesh mesh = {};
+    if (count < 2) {
         return mesh;
+    }
 
     const int samples_per_segment = 8;
     const int total_samples = (count - 1) * samples_per_segment + 1;
@@ -32,7 +33,7 @@ Mesh generate_road_mesh(const Vector3 *points, std::int32_t count) {
     for (int i = 0; i < total_samples; i++) {
         float global_t = (float)i / (float)samples_per_segment;
         int segment = (int)global_t;
-        float local_t = global_t - segment;
+        float local_t = global_t - (float)segment;
 
         if (segment >= count - 1) {
             segment = count - 2;
@@ -49,10 +50,10 @@ Mesh generate_road_mesh(const Vector3 *points, std::int32_t count) {
 
     mesh.vertexCount = total_samples * 2;
     mesh.triangleCount = (total_samples - 1) * 2;
-    mesh.vertices = (float *)MemAlloc(static_cast<unsigned int>(mesh.vertexCount) * 3 * sizeof(float));
-    mesh.normals = (float *)MemAlloc(static_cast<unsigned int>(mesh.vertexCount) * 3 * sizeof(float));
-    mesh.texcoords = (float *)MemAlloc(static_cast<unsigned int>(mesh.vertexCount) * 2 * sizeof(float));
-    mesh.indices = (unsigned short *)MemAlloc(static_cast<unsigned int>(mesh.triangleCount) * 3 * sizeof(unsigned short));
+    mesh.vertices = static_cast<float *>(MemAlloc(static_cast<unsigned int>(mesh.vertexCount) * 3 * sizeof(float)));
+    mesh.normals = static_cast<float *>(MemAlloc(static_cast<unsigned int>(mesh.vertexCount) * 3 * sizeof(float)));
+    mesh.texcoords = static_cast<float *>(MemAlloc(static_cast<unsigned int>(mesh.vertexCount) * 2 * sizeof(float)));
+    mesh.indices = static_cast<unsigned short *>(MemAlloc(static_cast<unsigned int>(mesh.triangleCount) * 3 * sizeof(unsigned short)));
 
     for (int i = 0; i < total_samples; i++) {
         Vector3 p = center_points[static_cast<std::size_t>(i)];
