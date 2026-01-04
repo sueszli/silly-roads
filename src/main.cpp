@@ -75,20 +75,17 @@ void update_physics_mut(GameState *state) {
     float terrain_h = get_terrain_height(state->ball_pos.x, state->ball_pos.z);
     bool is_on_ground = (state->ball_pos.y <= terrain_h + BALL_RADIUS);
 
+    if (!is_on_ground) {
+        // apply full gravity
+        state->ball_vel = Vector3Add(state->ball_vel, Vector3Scale(effective_gravity, dt));
+    }
     if (is_on_ground) {
-        // apply gravity via ground normal
         Vector3 terrain_normal = get_terrain_normal(state->ball_pos.x, state->ball_pos.z);
+
+        // apply gravity via ground normal
         float dot = Vector3DotProduct(effective_gravity, terrain_normal);
         Vector3 gravity_parallel = Vector3Subtract(effective_gravity, Vector3Scale(terrain_normal, dot));
         state->ball_vel = Vector3Add(state->ball_vel, Vector3Scale(gravity_parallel, dt));
-    } else {
-        // in air: apply full gravity
-        state->ball_vel = Vector3Add(state->ball_vel, Vector3Scale(effective_gravity, dt));
-    }
-
-    // gain upward velocity when going over slopes/peaks
-    if (is_on_ground) {
-        Vector3 terrain_normal = get_terrain_normal(state->ball_pos.x, state->ball_pos.z);
 
         // get horizontal velocity magnitude
         Vector3 vel_horizontal = state->ball_vel;
@@ -100,8 +97,8 @@ void update_physics_mut(GameState *state) {
             Vector3 horizontal_dir = Vector3Normalize(vel_horizontal);
 
             // project horizontal direction onto terrain surface
-            float dot = Vector3DotProduct(horizontal_dir, terrain_normal);
-            Vector3 surface_dir = Vector3Subtract(horizontal_dir, Vector3Scale(terrain_normal, dot));
+            float dot_surf = Vector3DotProduct(horizontal_dir, terrain_normal);
+            Vector3 surface_dir = Vector3Subtract(horizontal_dir, Vector3Scale(terrain_normal, dot_surf));
 
             // only redirect if we have a valid surface direction AND we're going uphill
             // check if surface direction points upward (positive y component)
@@ -116,12 +113,13 @@ void update_physics_mut(GameState *state) {
                 }
             }
         }
-    }
-    // only apply ground collision if ball is moving into the ground
-    // this allows the ball to launch off hills naturally
-    if (is_on_ground && state->ball_vel.y <= 0.0f) {
-        state->ball_pos.y = terrain_h + BALL_RADIUS;
-        state->ball_vel.y = 0.0f;
+
+        // only apply ground collision if ball is moving into the ground
+        // this allows the ball to launch off hills naturally
+        if (state->ball_vel.y <= 0.0f) {
+            state->ball_pos.y = terrain_h + BALL_RADIUS;
+            state->ball_vel.y = 0.0f;
+        }
     }
 
     // update position
