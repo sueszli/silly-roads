@@ -2,172 +2,285 @@
 
 ## Project Overview
 
-**Goal**: Develop a simple car driving simulator on mountainous terrain.  
-**Current State**: A red ball rolls on procedurally generated mountainous terrain with basic physics.  
-**Target State**: A controllable car with arcade physics drives on the terrain, chased by a dynamic camera, with collectible objectives.
+**Goal**: Develop a car driving simulator with a pickup truck on procedurally generated mountainous terrain with roads.  
+**Current State**: A red box (car) with arcade physics, chase camera, and collectible objectives.  
+**Next Milestone**: Replace box with 4-wheeled pickup truck model, add procedural road, and improve ground snapping.
 
 ## Core Constraints
 
 1. **Tiger Style Compliance**: Follow `CONTRIBUTING.md` strictly (Data-Oriented, `_mut` suffix, aggressive asserts)
-2. **LLM Observability**: Since the LLM cannot "see" the screen, all verification happens via structured text logs to stdout
+2. **LLM Observability**: Verification via structured text logs to stdout
 3. **Atomic Stages**: Each stage does ONE thing. If unsure, make it smaller.
 
 ---
 
 ## Log Format (LLM's Eyes)
 
-All stages output a standard log line each frame for verification:
-
 ```
-[FRAME <n>] POS:<x> <y> <z> | VEL:<x> <y> <z> | GROUND:<0|1> | HEADING:<rad> | SPEED:<f>
-```
-
-Fields may be omitted if not yet implemented. Example:
-```
-[FRAME 42] POS:60.12 5.34 60.00 | VEL:0.00 -2.10 0.00 | GROUND:0
+[FRAME <n>] CAR_POS:<x> <y> <z> | SPEED:<f> | HEADING:<rad> | GROUND:<0|1> | WHEEL_STEER:<rad>
 ```
 
 ---
 
-## Implementation Stages
+## Completed Stages (1-6)
 
-### Stage 1: Replace Ball with Car Visual
-
-**What**: Change the rendered shape from a sphere to a box (car body placeholder).  
-**Why**: Visual foundation for car before adding physics.  
-**Size**: ~10 lines changed
-
-**Requirements**:
-1. Replace `DrawSphere(state->ball_pos, BALL_RADIUS, RED)` with `DrawCube(state->ball_pos, 2.0f, 1.0f, 4.0f, RED)`
-2. Rename `ball_pos` → `car_pos` and `ball_vel` → `car_vel` throughout codebase
-3. Add `float car_heading = 0.0f` to `GameState` (used later)
-4. Update log to say `CAR_POS` (optional but helpful)
-
-**Prompt**:
-> Replace the ball visual with a red box (2x1x4 units). Rename `ball_pos`/`ball_vel` to `car_pos`/`car_vel` everywhere. Add `float car_heading = 0.0f` to `GameState`. Keep physics identical.
-
-**Verification**: Run game. A red box should roll on terrain. Log shows same physics behavior.
+✅ Stage 1: Car Visual (box replaces ball)  
+✅ Stage 2: Heading Rotation  
+✅ Stage 3: Steering Input (A/D)  
+✅ Stage 4: Arcade Speed Physics  
+✅ Stage 5: Chase Camera  
+✅ Stage 6: Collectible Objectives  
 
 ---
 
-### Stage 2: Rotate Car by Heading
+## Implementation Stages (7+)
 
-**What**: Make the car box rotate visually based on `car_heading`.  
-**Why**: Visual feedback before adding steering physics.  
-**Size**: ~15 lines changed
+### Stage 7: Four-Wheel Ground Snapping
 
-**Requirements**:
-1. Use raylib's `DrawModelEx` or calculate rotation matrix manually
-2. For now, just increment `car_heading` by a tiny amount each frame to test rotation
-3. Car should visibly spin slowly around Y axis
+**What**: Calculate car height from 4 wheel contact points instead of center.  
+**Why**: Prevents car body clipping into ground on slopes.  
+**Size**: ~40 lines
+
+**Technical Approach**:
+- Define 4 wheel offsets in local car space: front-left, front-right, rear-left, rear-right
+- Each frame, calculate world positions of wheel contact points using `car_pos` + rotated offset
+- Sample `get_terrain_height()` at each wheel position
+- Set `car_pos.y` = average of 4 heights + body clearance (e.g., 0.5 units)
+- Calculate car pitch/roll from height differences (optional for later)
+
+**State Changes**:
+```cpp
+// Add to GameState
+float wheel_heights[4] = {0}; // FL, FR, RL, RR terrain heights
+```
 
 **Prompt**:
-> Make the car box rotate around the Y-axis based on `car_heading`. For testing, increment `car_heading` by `0.01f` each frame. Use `DrawCubeWires` or `rlPushMatrix`/`rlRotatef` to apply the rotation before drawing.
+> Fix car ground clipping: instead of sampling terrain height at car center, sample at 4 wheel positions (offsets: ±1.0 X, ±1.5 Z from center). Average the 4 heights and add 0.5 clearance for `car_pos.y`. Store wheel heights in `GameState::wheel_heights[4]` for later use. Keep airtime logic: only snap when close to ground.
 
-**Verification**: Run game. The red box should slowly spin as it moves.
+**Verification**: Drive over bumpy terrain. Car body should stay above ground. Log `GROUND:1` when all 4 wheels touch.
 
 ---
 
-### Stage 3: Steering Input
+### Stage 8: Add Wheel Structs
 
-**What**: A/D keys control `car_heading` instead of directly moving left/right.  
-**Why**: Introduce steering mechanics.  
-**Size**: ~20 lines changed
+**What**: Add data for 4 wheels to `GameState`.  
+**Why**: Foundation for wheel rendering and steering visuals.  
+**Size**: ~20 lines
 
-**Requirements**:
-1. Remove the constant heading increment from Stage 3
-2. A/D keys now change `car_heading` (only when moving, i.e., `Vector3Length(car_vel) > 0.5f`)
-3. W/S still apply force, but now in the direction of `car_heading`
-4. Update log to include `HEADING:<radians>`
+**State Changes** (in `game_state.hpp`):
+```cpp
+struct WheelState {
+    Vector3 local_offset;  // position relative to car body
+    float steering_angle;  // only non-zero for front wheels
+    float spin_angle;      // rotation from rolling
+};
+
+// Add to GameState
+WheelState wheels[4] = {
+    {{-1.0f, -0.3f, 1.5f}, 0.0f, 0.0f},   // front-left
+    {{ 1.0f, -0.3f, 1.5f}, 0.0f, 0.0f},   // front-right
+    {{-1.0f, -0.3f, -1.5f}, 0.0f, 0.0f},  // rear-left
+    {{ 1.0f, -0.3f, -1.5f}, 0.0f, 0.0f},  // rear-right
+};
+```
 
 **Prompt**:
-> Remap controls: A/D change `car_heading` (turn rate ~2.0 rad/s). W/S apply force in the heading direction (forward = +sin(heading) X, +cos(heading) Z). Steering only works when moving. Log the heading.
+> Add `WheelState` struct with `local_offset`, `steering_angle`, and `spin_angle`. Add `wheels[4]` array to `GameState` with offsets for a 2x4 unit car body. Front wheels at Z=+1.5, rear at Z=-1.5. X offset ±1.0. Y offset -0.3 (below body).
 
-**Verification**: Run game. A/D should rotate the car. W should accelerate in facing direction.
+**Verification**: Code compiles. No visual changes yet.
 
 ---
 
-### Stage 4: Arcade Car Speed
+### Stage 9: Render Wheels as Cylinders
 
-**What**: Replace velocity-based movement with scalar `car_speed` plus heading.  
-**Why**: Arcade cars use speed+heading, not raw velocity vectors.  
-**Size**: ~30 lines changed
+**What**: Draw 4 cylinders at wheel positions.  
+**Why**: Visual representation of wheels.  
+**Size**: ~30 lines
 
 **Requirements**:
-1. Add `float car_speed = 0.0f` to `GameState`
-2. W increases `car_speed`, S decreases (with limits)
-3. Drag reduces `car_speed` over time
-4. `car_vel.x = sin(car_heading) * car_speed`, `car_vel.z = cos(car_heading) * car_speed`
-5. Keep Y velocity separate for gravity
-6. Log `SPEED:<f>`
+1. For each wheel, calculate world position: `car_pos` + (wheel offset rotated by `car_heading`)
+2. Draw horizontal cylinder (wheel) at each position
+3. Cylinder size: radius 0.3, height 0.2
+4. Use `rlPushMatrix`, `rlRotatef` to orient wheel
 
 **Prompt**:
-> Convert to arcade physics: add `car_speed` scalar. W/S accelerate/decelerate. Derive horizontal velocity from heading. Apply separate gravity to Y. Add drag to speed. Log speed.
+> Render 4 wheels as dark gray cylinders (radius 0.3, width 0.2). For each wheel: compute world position from `car_pos` + rotated offset, apply `car_heading` rotation, then draw cylinder oriented along X-axis. Use `DrawCylinder` with appropriate transforms.
 
-**Verification**: Run game. Car should accelerate smoothly. Log shows `SPEED` increasing/decreasing.
+**Verification**: Run game. 4 gray cylinders should appear at wheel positions, rotating with car.
 
 ---
 
-### Stage 5: Chase Camera
+### Stage 10: Wheel Steering Animation
 
-**What**: Camera follows behind the car based on heading.  
-**Why**: Creates driving game feel.  
-**Size**: ~25 lines changed
+**What**: Front wheels visually turn when A/D pressed.  
+**Why**: Shows steering input to player.  
+**Size**: ~15 lines
 
 **Requirements**:
-1. Calculate `target_cam_pos` = car position + offset rotated by heading
-   - Offset: 15 units behind, 8 units above
-2. Smoothly interpolate camera position using `Vector3Lerp(current, target, dt * 3.0f)`
-3. Camera looks at car position (or slightly ahead)
-4. Ensure camera Y never goes below terrain height + 2.0f
+1. When A/D pressed, update `wheels[0].steering_angle` and `wheels[1].steering_angle`
+2. Max steering angle: ±30° (0.52 rad)
+3. Smooth interpolation toward target angle
+4. Apply steering rotation to front wheel cylinders when drawing
 
 **Prompt**:
-> Implement a chase camera: position it 15 units behind and 8 units above the car (relative to heading). Use `Vector3Lerp` for smooth following. Camera target is the car. Check terrain collision.
+> Animate front wheel steering: when A pressed, target `steering_angle` = +0.52 rad; D = -0.52 rad; neither = 0. Lerp current toward target at rate 8.0/s. Apply this rotation around Y-axis when drawing front wheels. Rear wheels stay at 0. Log `WHEEL_STEER:<rad>`.
 
-**Verification**: Run game. Camera should smoothly follow behind as you turn. No underground clipping.
+**Verification**: Run game. Press A/D - front wheels should visibly turn. Log shows steering angle.
 
 ---
 
-### Stage 6: Collectible Objective
+### Stage 11: Wheel Spin Animation
 
-**What**: Spawn a target cylinder. Reaching it increments score.  
-**Why**: Adds gameplay loop.  
-**Size**: ~40 lines changed
+**What**: Wheels spin based on car speed.  
+**Why**: Looks more realistic.  
+**Size**: ~10 lines
 
 **Requirements**:
-1. Add to `GameState`: `Vector3 target_pos`, `std::int32_t score = 0`
-2. Initialize `target_pos` to a random location on terrain
-3. Each frame: if distance(car, target) < 5.0f, increment score and respawn target
-4. Draw target as a yellow cylinder
-5. Log `[GAME] COLLECTED! Score: <n>` when collected
-6. Display score on screen
+1. Update `spin_angle` based on `car_speed * dt / wheel_radius`
+2. Apply spin rotation around X-axis when drawing wheel
 
 **Prompt**:
-> Add a collectible target: yellow cylinder at random terrain position. When car reaches it (distance < 5), increment score, log `[GAME] COLLECTED! Score: <n>`, and respawn target elsewhere. Display score on screen.
+> Spin wheels based on speed: `spin_angle += car_speed * dt / 0.3f` (0.3 = wheel radius). Apply rotation around local X-axis when rendering. Keep angle bounded using modulo or wrapping.
 
-**Verification**: Run game. Drive to yellow cylinder. Log shows collection message. Score increments.
+**Verification**: Run game. Wheels should spin forward when moving forward, backward when reversing.
+
+---
+
+### Stage 12: Pickup Truck Body Shape
+
+**What**: Replace single box with multi-box truck shape.  
+**Why**: Looks like a vehicle instead of a brick.  
+**Size**: ~25 lines
+
+**Truck Model** (all local coordinates):
+- **Cabin**: Box at (0, 0.5, 0.8), size (1.8, 1.0, 1.5) - BLUE
+- **Bed**: Box at (0, 0.2, -1.2), size (1.8, 0.5, 2.0) - DARKBLUE
+- **Hood**: Box at (0, 0.2, 1.8), size (1.6, 0.4, 0.8) - BLUE
+- Remove old single red box
+
+**Prompt**:
+> Replace single red box with pickup truck shape. Draw 3 boxes (cabin, bed, hood) with offsets listed above. Use BLUE for cabin/hood, DARKBLUE for bed. Keep same rotation transform. Add wire outlines for definition.
+
+**Verification**: Run game. Should see blocky pickup truck shape. Wheels should still be attached correctly.
+
+---
+
+### Stage 13: Road Data Structure
+
+**What**: Add data for procedural road spline.  
+**Why**: Foundation for rendering road on terrain.  
+**Size**: ~30 lines
+
+**Concept**: Road is a list of control points. Use Catmull-Rom spline for smooth curves.
+
+**State Changes** (in `game_state.hpp`):
+```cpp
+constexpr std::int32_t ROAD_POINTS = 64;
+
+// Add to GameState
+Vector3 road_points[ROAD_POINTS] = {};  // control points
+bool road_initialized = false;
+```
+
+**Prompt**:
+> Add road data structure: `road_points[64]` array in `GameState`, `road_initialized` flag. Create `init_road_mut(GameState*)` function that generates 64 control points in a winding path. Start from car position, extend in a loop pattern.
+
+**Verification**: Code compiles. Call `init_road_mut` at startup.
+
+---
+
+### Stage 14: Generate Road Points
+
+**What**: Procedurally generate road control points.  
+**Why**: Creates an interesting path to drive on.  
+**Size**: ~40 lines
+
+**Algorithm**:
+1. Start at origin
+2. For each point: advance by fixed step, vary direction using noise
+3. Sample terrain height for Y coordinate
+4. Create a rough loop by curving back toward origin at end
+
+**Prompt**:
+> Implement `init_road_mut`: generate 64 road points starting at (0, 0, 0). Use angle-based walking: `angle += noise(i) * 0.3`. Step size 20 units. Set Y from `get_terrain_height()`. Final points should curve back toward start to create a loop. Log `[ROAD] Generated N points`.
+
+**Verification**: Log shows road generation message. Points should form a rough loop.
+
+---
+
+### Stage 15: Render Road Mesh
+
+**What**: Draw the road as a gray strip projected onto terrain.  
+**Why**: Visual road to follow.  
+**Size**: ~60 lines
+
+**Approach**:
+1. Create a new header/source: `src/road.hpp`, `src/road.cpp`
+2. Interpolate between control points using Catmull-Rom
+3. At each sample, calculate road center + left/right edges (width 8 units)
+4. Project edge points onto terrain
+5. Build triangle strip mesh, upload to GPU
+6. Draw as gray material
+
+**Prompt**:
+> Create `road.hpp/cpp`. Implement `generate_road_mesh(const Vector3* points, std::int32_t count)` that returns a `Mesh`. Interpolate points using Catmull-Rom. Road width 8 units. Sample terrain height for each vertex. Return mesh ready for GPU upload. Draw in gray (DARKGRAY).
+
+**Verification**: Run game. Gray road should appear on terrain, following the generated curve.
+
+---
+
+### Stage 16: Road Follows Player
+
+**What**: Regenerate road around player as they move.  
+**Why**: Infinite procedural road.  
+**Size**: ~30 lines
+
+**Approach**:
+1. Track player progress along road
+2. When player passes midpoint, shift road points
+3. Generate new points ahead, discard old points behind
+4. Regenerate mesh
+
+**Prompt**:
+> Track which road segment player is nearest. When player passes point 32, shift array: move points 32-63 to 0-31, generate new points at 32-63. Regenerate road mesh. Log `[ROAD] Extended`.
+
+**Verification**: Drive along road. Road should extend ahead infinitely. Log shows extension messages.
 
 ---
 
 ## Summary Table
 
-| Stage | Name | Lines Changed | Key Files |
-|-------|------|--------------|-----------|
-| 1 | Car Visual | ~10 | main.cpp |
-| 2 | Heading Rotation | ~15 | main.cpp |
-| 3 | Steering Input | ~20 | main.cpp |
-| 4 | Arcade Speed | ~30 | main.cpp |
-| 5 | Chase Camera | ~25 | main.cpp |
-| 6 | Collectibles | ~40 | main.cpp |
+| Stage | Name | Lines | Key Files |
+|-------|------|-------|-----------|
+| 7 | Four-Wheel Ground Snap | ~40 | main.cpp, game_state.hpp |
+| 8 | Wheel Structs | ~20 | game_state.hpp |
+| 9 | Render Wheels | ~30 | main.cpp |
+| 10 | Wheel Steering Animation | ~15 | main.cpp |
+| 11 | Wheel Spin Animation | ~10 | main.cpp |
+| 12 | Pickup Truck Body | ~25 | main.cpp |
+| 13 | Road Data Structure | ~30 | game_state.hpp |
+| 14 | Generate Road Points | ~40 | main.cpp or road.cpp |
+| 15 | Render Road Mesh | ~60 | road.hpp, road.cpp |
+| 16 | Road Follows Player | ~30 | main.cpp, road.cpp |
 
-**Total**: 6 small stages, ~125 lines of incremental changes
+**Total**: 10 stages, ~300 lines of incremental changes
+
+---
+
+## Suggested Implementation Order
+
+**Phase A (Truck Visuals)**: Stages 8 → 9 → 10 → 11 → 12  
+**Phase B (Ground Physics)**: Stage 7  
+**Phase C (Road System)**: Stages 13 → 14 → 15 → 16
+
+Start with Phase A for quick visual payoff, then Phase B for physics fix, then Phase C for road.
 
 ---
 
 ## Notes for LLM Developers
 
 1. **One stage at a time**: Complete verification before proceeding
-2. **Read the log**: The stdout log is your primary debugging tool
+2. **Read the log**: stdout is your primary debugging tool
 3. **Compile often**: `make clean && make` after each change
-4. **Assert everything**: Follow CONTRIBUTING.md's safety rules
+4. **Remove collectibles**: After Stage 16, consider removing the yellow cylinder objective in favor of road-following
 5. **Rollback on failure**: If a stage breaks, revert and retry with smaller steps
