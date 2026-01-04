@@ -26,7 +26,7 @@ void update_physics_mut(GameState *state) {
     float dt = GetFrameTime();
     dt = std::min(dt, 0.05f);
 
-    // A/D steering (only when moving)
+    // A/D steering
     if (std::abs(state->car_speed) > 0.5f) {
         float turn_factor = (state->car_speed > 0.0f) ? 1.0f : -1.0f; // reverse steering when going backward
         if (IsKeyDown(KEY_D)) {
@@ -36,23 +36,6 @@ void update_physics_mut(GameState *state) {
             state->car_heading += PHYS_TURN_RATE * dt * turn_factor;
         }
     }
-
-    // wheel steering animation
-    constexpr float MAX_STEER_ANGLE = 0.52f; // 30 degrees
-    constexpr float STEER_LERP_RATE = 8.0f;
-    float target_steer = 0.0f;
-    if (IsKeyDown(KEY_D)) {
-        target_steer = -MAX_STEER_ANGLE;
-    } else if (IsKeyDown(KEY_A)) {
-        target_steer = MAX_STEER_ANGLE;
-    }
-    // lerp front wheels toward target
-    state->wheels[0].steering_angle += (target_steer - state->wheels[0].steering_angle) * STEER_LERP_RATE * dt;
-    state->wheels[1].steering_angle += (target_steer - state->wheels[1].steering_angle) * STEER_LERP_RATE * dt;
-    // rear wheels always 0
-    state->wheels[2].steering_angle = 0.0f;
-    state->wheels[3].steering_angle = 0.0f;
-
     // W/S drive force
     bool has_input = false;
     if (IsKeyDown(KEY_W)) {
@@ -65,10 +48,12 @@ void update_physics_mut(GameState *state) {
     }
 
     // limit speed
-    if (state->car_speed > PHYS_MAX_SPEED)
+    if (state->car_speed > PHYS_MAX_SPEED) {
         state->car_speed = PHYS_MAX_SPEED;
-    if (state->car_speed < -PHYS_MAX_SPEED)
+    }
+    if (state->car_speed < -PHYS_MAX_SPEED) {
         state->car_speed = -PHYS_MAX_SPEED;
+    }
 
     // apply drag
     state->car_speed *= PHYS_DRAG;
@@ -81,6 +66,27 @@ void update_physics_mut(GameState *state) {
     // calculate horizontal velocity from heading and speed
     state->car_vel.x = std::sin(state->car_heading) * state->car_speed;
     state->car_vel.z = std::cos(state->car_heading) * state->car_speed;
+
+    //
+    // wheels
+    //
+
+    // wheel steering animation
+    constexpr float MAX_STEER_ANGLE = 0.52f; // 30 degrees
+    constexpr float STEER_LERP_RATE = 8.0f;
+    float target_steer = 0.0f;
+    if (IsKeyDown(KEY_D)) {
+        target_steer = -MAX_STEER_ANGLE;
+    } else if (IsKeyDown(KEY_A)) {
+        target_steer = MAX_STEER_ANGLE;
+    }
+
+    // lerp front wheels toward target
+    state->wheels[0].steering_angle += (target_steer - state->wheels[0].steering_angle) * STEER_LERP_RATE * dt;
+    state->wheels[1].steering_angle += (target_steer - state->wheels[1].steering_angle) * STEER_LERP_RATE * dt;
+    // rear wheels always 0
+    state->wheels[2].steering_angle = 0.0f;
+    state->wheels[3].steering_angle = 0.0f;
 
     // 4-wheel ground snapping (Yaw-only sampling for simplicity)
     const float s = std::sin(state->car_heading);
