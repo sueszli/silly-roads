@@ -70,7 +70,7 @@ void update_physics_mut(GameState *state) {
 
     // gravity softening on input
     bool has_input = IsKeyDown(KEY_W) || IsKeyDown(KEY_S) || IsKeyDown(KEY_A) || IsKeyDown(KEY_D);
-    Vector3 effective_gravity = has_input ? Vector3Scale(PHYS_GRAVITY, 0.2f) : PHYS_GRAVITY;
+    Vector3 effective_gravity = has_input ? Vector3Scale(PHYS_GRAVITY, 0.05f) : PHYS_GRAVITY;
 
     float terrain_h = get_terrain_height(state->ball_pos.x, state->ball_pos.z);
     bool is_on_ground = (state->ball_pos.y <= terrain_h + BALL_RADIUS);
