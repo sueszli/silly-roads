@@ -41,4 +41,8 @@ struct GameState {
     Vector3 target_pos = {0.0f, 0.0f, 0.0f};
     std::int32_t score = 0;
     std::int32_t frame_count = 0;
+
+    static constexpr std::int32_t ROAD_POINTS = 64;
+    Vector3 road_points[ROAD_POINTS] = {}; // control points
+    bool road_initialized = false;
 };

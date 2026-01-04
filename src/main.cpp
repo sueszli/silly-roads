@@ -26,11 +26,11 @@ void update_physics_mut(GameState *state) {
     float dt = GetFrameTime();
     dt = std::min(dt, 0.1f);
 
-    // position update pt. 1: immediately to eliminate one-frame lag
-    state->car_pos.x += state->car_vel.x * dt;
-    state->car_pos.z += state->car_vel.z * dt;
+    //
+    // body - horizontal movement
+    //
 
-    // A/D steering
+    // A/D steering & W/S drive force inputs
     if (std::abs(state->car_speed) > 0.5f) {
         float turn_factor = (state->car_speed > 0.0f) ? 1.0f : -1.0f; // reverse steering when going backward
         if (IsKeyDown(KEY_D)) {
@@ -40,7 +40,6 @@ void update_physics_mut(GameState *state) {
             state->car_heading += PHYS_TURN_RATE * dt * turn_factor;
         }
     }
-    // W/S drive force
     bool has_input = false;
     if (IsKeyDown(KEY_W)) {
         state->car_speed += PHYS_ACCEL * dt;
@@ -51,31 +50,27 @@ void update_physics_mut(GameState *state) {
         has_input = true;
     }
 
-    // limit speed
-    if (state->car_speed > PHYS_MAX_SPEED) {
+    // speed limits & drag
+    if (state->car_speed > PHYS_MAX_SPEED)
         state->car_speed = PHYS_MAX_SPEED;
-    }
-    if (state->car_speed < -PHYS_MAX_SPEED) {
+    if (state->car_speed < -PHYS_MAX_SPEED)
         state->car_speed = -PHYS_MAX_SPEED;
-    }
-
-    // apply drag
     state->car_speed *= PHYS_DRAG;
-
-    // snap to 0 if very slow and no input
-    if (!has_input && std::abs(state->car_speed) < 0.1f) {
+    if (!has_input && std::abs(state->car_speed) < 0.1f)
         state->car_speed = 0.0f;
-    }
 
-    // calculate horizontal velocity from heading and speed
+    // calculate velocity & update horizontal position
+    // moving body before sampling wheels prevents clipping at high speed
     state->car_vel.x = std::sin(state->car_heading) * state->car_speed;
     state->car_vel.z = std::cos(state->car_heading) * state->car_speed;
+    state->car_pos.x += state->car_vel.x * dt;
+    state->car_pos.z += state->car_vel.z * dt;
 
     //
-    // wheels
+    // wheel update
     //
 
-    // wheel steering animation
+    // wheel steering animation lerp
     constexpr float MAX_STEER_ANGLE = 0.52f; // 30 degrees
     constexpr float STEER_LERP_RATE = 8.0f;
     float target_steer = 0.0f;
@@ -85,14 +80,12 @@ void update_physics_mut(GameState *state) {
         target_steer = MAX_STEER_ANGLE;
     }
 
-    // lerp front wheels toward target
     state->wheels[0].steering_angle += (target_steer - state->wheels[0].steering_angle) * STEER_LERP_RATE * dt;
     state->wheels[1].steering_angle += (target_steer - state->wheels[1].steering_angle) * STEER_LERP_RATE * dt;
-    // rear wheels always 0
     state->wheels[2].steering_angle = 0.0f;
     state->wheels[3].steering_angle = 0.0f;
 
-    // 4-wheel ground snapping
+    // wheel terrain sampling at new positions
     const float s = std::sin(state->car_heading);
     const float c = std::cos(state->car_heading);
     float h[4];
@@ -107,7 +100,16 @@ void update_physics_mut(GameState *state) {
     }
     avg_h *= 0.25f;
 
-    // simple orientation logic
+    //
+    // body - vertical movement
+    //
+
+    float target_y = avg_h + 0.5f;
+    if (state->car_pos.y < target_y)
+        state->car_pos.y = target_y;
+    state->car_pos.y += (target_y - state->car_pos.y) * 20.0f * dt;
+
+    // body pitch and roll
     const float front_h = (h[0] + h[1]) * 0.5f;
     const float back_h = (h[2] + h[3]) * 0.5f;
     const float left_h = (h[0] + h[2]) * 0.5f;
@@ -118,13 +120,6 @@ void update_physics_mut(GameState *state) {
 
     state->car_pitch += (target_pitch - state->car_pitch) * 15.0f * dt;
     state->car_roll += (target_roll - state->car_roll) * 15.0f * dt;
-
-    // position update pt. 2: horizontal + snapping to prevent clipping
-    float target_y = avg_h + 0.5f;
-    if (state->car_pos.y < target_y) {
-        state->car_pos.y = target_y;
-    }
-    state->car_pos.y += (target_y - state->car_pos.y) * 15.0f * dt; // smooth position snapping (suspension)
 }
 
 //
@@ -313,6 +308,31 @@ void spawn_initial_target(GameState *state) {
     state->target_pos.y = get_terrain_height(state->target_pos.x, state->target_pos.z);
 }
 
+void init_road_mut(GameState *state) {
+    assert(state != nullptr);
+    if (state->road_initialized) {
+        return;
+    }
+
+    // start near car
+    float x = state->car_pos.x;
+    float z = state->car_pos.z;
+    float angle = 0.0f;
+
+    for (int i = 0; i < GameState::ROAD_POINTS; i++) {
+        state->road_points[i] = {x, 0.0f, z};
+        state->road_points[i].y = get_terrain_height(x, z);
+
+        // move forward in a winding path
+        angle += 0.2f;
+        x += std::cos(angle) * 10.0f;
+        z += std::sin(angle) * 10.0f;
+    }
+
+    state->road_initialized = true;
+    std::printf("[ROAD] Initialized %d points\n", GameState::ROAD_POINTS);
+}
+
 std::int32_t main() {
     InitWindow(800, 450, "raycer");
     SetTargetFPS(240);
@@ -320,6 +340,7 @@ std::int32_t main() {
     GameState state{};
     state.texture = load_terrain_texture();
     spawn_initial_target(&state);
+    init_road_mut(&state);
 
     // game loop
     while (!WindowShouldClose()) {
