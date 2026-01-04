@@ -80,42 +80,13 @@ void update_physics_mut(GameState *state) {
         state->ball_vel = Vector3Add(state->ball_vel, Vector3Scale(effective_gravity, dt));
     }
     if (is_on_ground) {
-        Vector3 terrain_normal = get_terrain_normal(state->ball_pos.x, state->ball_pos.z);
-
         // apply gravity via ground normal
+        Vector3 terrain_normal = get_terrain_normal(state->ball_pos.x, state->ball_pos.z);
         float dot = Vector3DotProduct(effective_gravity, terrain_normal);
         Vector3 gravity_parallel = Vector3Subtract(effective_gravity, Vector3Scale(terrain_normal, dot));
         state->ball_vel = Vector3Add(state->ball_vel, Vector3Scale(gravity_parallel, dt));
 
-        // get horizontal velocity magnitude
-        Vector3 vel_horizontal = state->ball_vel;
-        vel_horizontal.y = 0.0f;
-        float horizontal_speed = Vector3Length(vel_horizontal);
-
-        // if moving horizontally, check if we're going uphill
-        if (horizontal_speed > 0.1f) {
-            Vector3 horizontal_dir = Vector3Normalize(vel_horizontal);
-
-            // project horizontal direction onto terrain surface
-            float dot_surf = Vector3DotProduct(horizontal_dir, terrain_normal);
-            Vector3 surface_dir = Vector3Subtract(horizontal_dir, Vector3Scale(terrain_normal, dot_surf));
-
-            // only redirect if we have a valid surface direction AND we're going uphill
-            // check if surface direction points upward (positive y component)
-            if (Vector3Length(surface_dir) > 0.01f) {
-                surface_dir = Vector3Normalize(surface_dir);
-
-                // only apply if the surface direction has an upward component
-                // this prevents the ball from sticking to valleys
-                if (surface_dir.y > 0.0f) {
-                    // apply horizontal speed along the terrain surface
-                    state->ball_vel = Vector3Scale(surface_dir, horizontal_speed);
-                }
-            }
-        }
-
-        // only apply ground collision if ball is moving into the ground
-        // this allows the ball to launch off hills naturally
+        // snap ball to ground, but also allow natural launch
         if (state->ball_vel.y <= 0.0f) {
             state->ball_pos.y = terrain_h + BALL_RADIUS;
             state->ball_vel.y = 0.0f;
