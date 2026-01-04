@@ -118,7 +118,7 @@ WheelState wheels[4] = {
 
 ---
 
-### Stage 5: Wheel Spin Animation
+### Stage 5: Wheel Spin Animation -> SKIPPED
 
 **What**: Wheels spin based on car speed.  
 **Why**: Looks more realistic.  

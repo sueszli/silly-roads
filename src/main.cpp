@@ -272,8 +272,17 @@ void draw_frame(const GameState *state) {
     rlPushMatrix();
     rlTranslatef(state->car_pos.x, state->car_pos.y, state->car_pos.z);
     rlRotatef(state->car_heading * RAD2DEG, 0.0f, 1.0f, 0.0f);
-    DrawCube({0.0f, 0.0f, 0.0f}, 2.0f, 1.0f, 4.0f, RED);
-    DrawCubeWires({0.0f, 0.0f, 0.0f}, 2.0f, 1.0f, 4.0f, MAROON);
+
+    // pickup truck body (multi-box shape)
+    // cabin: box at (0, 0.5, 0.8), size (1.8, 1.0, 1.5)
+    DrawCube({0.0f, 0.5f, 0.8f}, 1.8f, 1.0f, 1.5f, BLUE);
+    DrawCubeWires({0.0f, 0.5f, 0.8f}, 1.8f, 1.0f, 1.5f, DARKBLUE);
+    // bed: box at (0, 0.2, -1.2), size (1.8, 0.5, 2.0)
+    DrawCube({0.0f, 0.2f, -1.2f}, 1.8f, 0.5f, 2.0f, DARKBLUE);
+    DrawCubeWires({0.0f, 0.2f, -1.2f}, 1.8f, 0.5f, 2.0f, BLUE);
+    // hood: box at (0, 0.2, 1.8), size (1.6, 0.4, 0.8)
+    DrawCube({0.0f, 0.2f, 1.8f}, 1.6f, 0.4f, 0.8f, BLUE);
+    DrawCubeWires({0.0f, 0.2f, 1.8f}, 1.6f, 0.4f, 0.8f, DARKBLUE);
 
     // draw wheels (4 dark gray cylinders)
     for (int i = 0; i < 4; i++) {
