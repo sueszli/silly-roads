@@ -31,6 +31,10 @@ struct GameState {
         .projection = CAMERA_PERSPECTIVE,
     };
 
+    //
+    // terrain
+    //
+
     Mesh terrain_mesh = {};
     Model terrain_model = {};
     Texture2D texture = {};
