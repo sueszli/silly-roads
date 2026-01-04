@@ -24,7 +24,11 @@ constexpr float PHYS_TURN_RATE = 2.0f;   // turn rate in rad/s
 void update_physics_mut(GameState *state) {
     assert(state != nullptr);
     float dt = GetFrameTime();
-    dt = std::min(dt, 0.05f);
+    dt = std::min(dt, 0.1f);
+
+    // position update pt. 1: immediately to eliminate one-frame lag
+    state->car_pos.x += state->car_vel.x * dt;
+    state->car_pos.z += state->car_vel.z * dt;
 
     // A/D steering
     if (std::abs(state->car_speed) > 0.5f) {
@@ -88,7 +92,7 @@ void update_physics_mut(GameState *state) {
     state->wheels[2].steering_angle = 0.0f;
     state->wheels[3].steering_angle = 0.0f;
 
-    // 4-wheel ground snapping (Yaw-only sampling for simplicity)
+    // 4-wheel ground snapping
     const float s = std::sin(state->car_heading);
     const float c = std::cos(state->car_heading);
     float h[4];
@@ -103,9 +107,6 @@ void update_physics_mut(GameState *state) {
     }
     avg_h *= 0.25f;
 
-    // smooth position snapping (suspension)
-    state->car_pos.y += (avg_h + 0.5f - state->car_pos.y) * 20.0f * dt;
-
     // simple orientation logic
     const float front_h = (h[0] + h[1]) * 0.5f;
     const float back_h = (h[2] + h[3]) * 0.5f;
@@ -118,8 +119,12 @@ void update_physics_mut(GameState *state) {
     state->car_pitch += (target_pitch - state->car_pitch) * 15.0f * dt;
     state->car_roll += (target_roll - state->car_roll) * 15.0f * dt;
 
-    // update position
-    state->car_pos = Vector3Add(state->car_pos, Vector3Scale(state->car_vel, dt));
+    // position update pt. 2: horizontal + snapping to prevent clipping
+    float target_y = avg_h + 0.5f;
+    if (state->car_pos.y < target_y) {
+        state->car_pos.y = target_y;
+    }
+    state->car_pos.y += (target_y - state->car_pos.y) * 15.0f * dt; // smooth position snapping (suspension)
 }
 
 //
