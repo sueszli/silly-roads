@@ -2,6 +2,7 @@
 #include "raylib.h"
 #include "raymath.h"
 #include "rlgl.h"
+#include "road.hpp"
 #include "terrain.hpp"
 
 #include <cassert>
@@ -148,6 +149,18 @@ void generate_terrain_mesh_mut(GameState *state) {
     state->mesh_generated = true;
 }
 
+void generate_road_mesh_mut(GameState *state) {
+    assert(state != nullptr);
+    if (state->road_mesh_generated) {
+        UnloadModel(state->road_model);
+    }
+    state->road_mesh = generate_road_mesh(state->road_points, GameState::ROAD_POINTS);
+    UploadMesh(&state->road_mesh, false);
+    state->road_model = LoadModelFromMesh(state->road_mesh);
+    state->road_model.materials[0].maps[MATERIAL_MAP_DIFFUSE].color = DARKGRAY;
+    state->road_mesh_generated = true;
+}
+
 //
 // loggng
 //
@@ -229,6 +242,10 @@ void draw_frame(const GameState *state) {
     ClearBackground(SKYBLUE);
     BeginMode3D(state->camera);
     DrawModel(state->terrain_model, {state->terrain_offset_x, 0.0f, state->terrain_offset_z}, 1.0f, WHITE);
+
+    if (state->road_mesh_generated) {
+        DrawModel(state->road_model, {0.0f, 0.0f, 0.0f}, 1.0f, WHITE);
+    }
 
     // draw target
     DrawCylinder(state->target_pos, 1.0f, 1.0f, 4.0f, 16, YELLOW);
@@ -334,6 +351,7 @@ void init_road_mut(GameState *state) {
     }
 
     state->road_initialized = true;
+    generate_road_mesh_mut(state);
     std::printf("[ROAD] Generated %d points\n", GameState::ROAD_POINTS);
 }
 

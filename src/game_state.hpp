@@ -49,4 +49,9 @@ struct GameState {
     static constexpr std::int32_t ROAD_POINTS = 64;
     Vector3 road_points[ROAD_POINTS] = {}; // control points
     bool road_initialized = false;
+
+    // road rendering
+    Mesh road_mesh = {};
+    Model road_model = {};
+    bool road_mesh_generated = false;
 };
