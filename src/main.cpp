@@ -44,36 +44,12 @@ void update_physics_mut(GameState *state) {
     float dt = GetFrameTime();
     dt = std::min(dt, 0.05f);
 
-    float terrain_h = get_terrain_height(state->ball_pos.x, state->ball_pos.z);
-    bool is_on_ground = (state->ball_pos.y <= terrain_h + BALL_RADIUS);
-
-    // check input for gravity softening
-    bool has_input = IsKeyDown(KEY_W) || IsKeyDown(KEY_S) || IsKeyDown(KEY_A) || IsKeyDown(KEY_D);
-    Vector3 effective_gravity = has_input ? Vector3Scale(PHYS_GRAVITY, 0.2f) : PHYS_GRAVITY;
-
-    // apply gravity (decomposed based on terrain slope if on ground)
-    if (is_on_ground) {
-        // get terrain normal and decompose gravity into parallel and perpendicular components
-        Vector3 terrain_normal = get_terrain_normal(state->ball_pos.x, state->ball_pos.z);
-
-        // project gravity onto the terrain surface (parallel component)
-        float dot = Vector3DotProduct(effective_gravity, terrain_normal);
-        Vector3 gravity_parallel = Vector3Subtract(effective_gravity, Vector3Scale(terrain_normal, dot));
-
-        // apply only the parallel component to make ball roll down slopes
-        state->ball_vel = Vector3Add(state->ball_vel, Vector3Scale(gravity_parallel, dt));
-    } else {
-        // in air: apply full gravity
-        state->ball_vel = Vector3Add(state->ball_vel, Vector3Scale(effective_gravity, dt));
-    }
-
     // handle input (relative to camera)
     Vector3 cam_fwd = Vector3Subtract(state->camera.target, state->camera.position);
     cam_fwd.y = 0.0f;
     cam_fwd = Vector3Normalize(cam_fwd);
     Vector3 cam_right = Vector3CrossProduct(cam_fwd, {0.0f, 1.0f, 0.0f});
     cam_right = Vector3Normalize(cam_right);
-
     Vector3 input_dir = {0.0f, 0.0f, 0.0f};
     if (IsKeyDown(KEY_W)) {
         input_dir = Vector3Add(input_dir, cam_fwd);
@@ -87,15 +63,30 @@ void update_physics_mut(GameState *state) {
     if (IsKeyDown(KEY_D)) {
         input_dir = Vector3Add(input_dir, cam_right);
     }
-
     if (Vector3Length(input_dir) > 0.1f) {
         input_dir = Vector3Normalize(input_dir);
         state->ball_vel = Vector3Add(state->ball_vel, Vector3Scale(input_dir, PHYS_MOVE_FORCE * dt));
     }
 
-    // when on ground and moving uphill, project velocity onto terrain surface
-    // this makes the ball gain upward velocity when going over slopes/peaks
-    // but allows natural falling in valleys
+    // gravity softening on input
+    bool has_input = IsKeyDown(KEY_W) || IsKeyDown(KEY_S) || IsKeyDown(KEY_A) || IsKeyDown(KEY_D);
+    Vector3 effective_gravity = has_input ? Vector3Scale(PHYS_GRAVITY, 0.2f) : PHYS_GRAVITY;
+
+    float terrain_h = get_terrain_height(state->ball_pos.x, state->ball_pos.z);
+    bool is_on_ground = (state->ball_pos.y <= terrain_h + BALL_RADIUS);
+
+    if (is_on_ground) {
+        // apply gravity via ground normal
+        Vector3 terrain_normal = get_terrain_normal(state->ball_pos.x, state->ball_pos.z);
+        float dot = Vector3DotProduct(effective_gravity, terrain_normal);
+        Vector3 gravity_parallel = Vector3Subtract(effective_gravity, Vector3Scale(terrain_normal, dot));
+        state->ball_vel = Vector3Add(state->ball_vel, Vector3Scale(gravity_parallel, dt));
+    } else {
+        // in air: apply full gravity
+        state->ball_vel = Vector3Add(state->ball_vel, Vector3Scale(effective_gravity, dt));
+    }
+
+    // gain upward velocity when going over slopes/peaks
     if (is_on_ground) {
         Vector3 terrain_normal = get_terrain_normal(state->ball_pos.x, state->ball_pos.z);
 
@@ -126,20 +117,15 @@ void update_physics_mut(GameState *state) {
             }
         }
     }
-
-    // update position from velocity
-    state->ball_pos = Vector3Add(state->ball_pos, Vector3Scale(state->ball_vel, dt));
-
-    // recheck ground collision after movement
-    terrain_h = get_terrain_height(state->ball_pos.x, state->ball_pos.z);
-    is_on_ground = (state->ball_pos.y <= terrain_h + BALL_RADIUS);
-
     // only apply ground collision if ball is moving into the ground
     // this allows the ball to launch off hills naturally
     if (is_on_ground && state->ball_vel.y <= 0.0f) {
         state->ball_pos.y = terrain_h + BALL_RADIUS;
         state->ball_vel.y = 0.0f;
     }
+
+    // update position
+    state->ball_pos = Vector3Add(state->ball_pos, Vector3Scale(state->ball_vel, dt));
 
     // apply drag
     state->ball_vel = Vector3Scale(state->ball_vel, PHYS_DRAG);
