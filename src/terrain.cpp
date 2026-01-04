@@ -87,7 +87,12 @@ Vector3 get_terrain_normal(float x, float z) {
     const Vector3 v1 = {step, h_x - h, 0.0f};
     const Vector3 v2 = {0.0f, h_z - h, step};
 
-    const Vector3 normal = {v1.y * v2.z - v1.z * v2.y, v1.z * v2.x - v1.x * v2.z, v1.x * v2.y - v1.y * v2.x};
+    // Cross product v2 x v1 to get upward pointing normal (since Raylib is Y-up / Right-Handed)
+    // v2 = (0, dy, step), v1 = (step, dy, 0)
+    // x = v2.y*v1.z - v2.z*v1.y = dy*0 - step*dy = -step*dy
+    // y = v2.z*v1.x - v2.x*v1.z = step*step - 0  = step^2  (POSITIVE Y!)
+    // z = v2.x*v1.y - v2.y*v1.x = 0 - dy*step    = -step*dy
+    const Vector3 normal = {v2.y * v1.z - v2.z * v1.y, v2.z * v1.x - v2.x * v1.z, v2.x * v1.y - v2.y * v1.x};
     const float len = std::sqrt(normal.x * normal.x + normal.y * normal.y + normal.z * normal.z);
     assert(len > 0.0f);
     return {normal.x / len, normal.y / len, normal.z / len};

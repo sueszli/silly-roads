@@ -36,8 +36,9 @@ struct GameState {
 
 constexpr float BALL_RADIUS = 0.5f;
 constexpr Vector3 PHYS_GRAVITY{0.0f, -500.0f, 0.0f}; // gravitational force
-constexpr float PHYS_MOVE_FORCE = 250.0f;            // directional speed by player
-constexpr float PHYS_DRAG = 0.995f;                  // drag coefficient
+constexpr float AIR_TIME_GRAVITY_MULTIPLIER = 0.6f;  // reduce gravity in air
+constexpr float PHYS_MOVE_FORCE = 400.0f;            // directional speed by player
+constexpr float PHYS_DRAG = 0.995f;                  // drag coefficient (so the ball halts eventually)
 
 void update_physics_mut(GameState *state) {
     assert(state != nullptr);
@@ -63,33 +64,43 @@ void update_physics_mut(GameState *state) {
     if (IsKeyDown(KEY_D)) {
         input_dir = Vector3Add(input_dir, cam_right);
     }
-    if (Vector3Length(input_dir) > 0.1f) {
+
+    bool has_input = Vector3Length(input_dir) > 0.1f;
+    if (has_input) {
         input_dir = Vector3Normalize(input_dir);
         state->ball_vel = Vector3Add(state->ball_vel, Vector3Scale(input_dir, PHYS_MOVE_FORCE * dt));
     }
 
-    // gravity softening on input
-    bool has_input = IsKeyDown(KEY_W) || IsKeyDown(KEY_S) || IsKeyDown(KEY_A) || IsKeyDown(KEY_D);
-    Vector3 effective_gravity = has_input ? Vector3Scale(PHYS_GRAVITY, 0.05f) : PHYS_GRAVITY;
-
     float terrain_h = get_terrain_height(state->ball_pos.x, state->ball_pos.z);
     bool is_on_ground = (state->ball_pos.y <= terrain_h + BALL_RADIUS);
 
-    if (!is_on_ground) {
-        // apply full gravity
-        state->ball_vel = Vector3Add(state->ball_vel, Vector3Scale(effective_gravity, dt));
+    // soften gravity if mid-air and holding input
+    Vector3 effective_gravity = PHYS_GRAVITY;
+    if (!is_on_ground && has_input) {
+        effective_gravity = Vector3Scale(PHYS_GRAVITY, AIR_TIME_GRAVITY_MULTIPLIER);
     }
-    if (is_on_ground) {
-        // apply gravity via ground normal
+
+    if (!is_on_ground) {
+        // free fall
+        state->ball_vel = Vector3Add(state->ball_vel, Vector3Scale(effective_gravity, dt));
+    } else {
+        // ground physics
         Vector3 terrain_normal = get_terrain_normal(state->ball_pos.x, state->ball_pos.z);
-        float dot = Vector3DotProduct(effective_gravity, terrain_normal);
-        Vector3 gravity_parallel = Vector3Subtract(effective_gravity, Vector3Scale(terrain_normal, dot));
+
+        // apply slope acceleration (gravity parallel to surface)
+        float g_dot_n = Vector3DotProduct(effective_gravity, terrain_normal);
+        Vector3 gravity_parallel = Vector3Subtract(effective_gravity, Vector3Scale(terrain_normal, g_dot_n));
         state->ball_vel = Vector3Add(state->ball_vel, Vector3Scale(gravity_parallel, dt));
 
-        // snap ball to ground, but also allow natural launch
-        if (state->ball_vel.y <= 0.0f) {
+        // project velocity to be tangent to surface (prevent tunneling into ground)
+        float v_dot_n = Vector3DotProduct(state->ball_vel, terrain_normal);
+        if (v_dot_n < 0.0f) {
+            state->ball_vel = Vector3Subtract(state->ball_vel, Vector3Scale(terrain_normal, v_dot_n));
+        }
+
+        // keep ball on surface if not launching
+        if (state->ball_pos.y < terrain_h + BALL_RADIUS) {
             state->ball_pos.y = terrain_h + BALL_RADIUS;
-            state->ball_vel.y = 0.0f;
         }
     }
 
