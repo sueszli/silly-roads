@@ -157,7 +157,7 @@ void generate_road_mesh_mut(GameState *state) {
     state->road_mesh = generate_road_mesh(state->road_points, GameState::ROAD_POINTS);
     UploadMesh(&state->road_mesh, false);
     state->road_model = LoadModelFromMesh(state->road_mesh);
-    state->road_model.materials[0].maps[MATERIAL_MAP_DIFFUSE].color = DARKGRAY;
+    state->road_model.materials[0].maps[MATERIAL_MAP_DIFFUSE].color = BROWN;
     state->road_mesh_generated = true;
 }
 
@@ -194,25 +194,6 @@ void update_terrain_mut(GameState *state) {
     }
 }
 
-void update_gameplay_mut(GameState *state) {
-    assert(state != nullptr);
-    // ensure target matches terrain height
-    float target_h = get_terrain_height(state->target_pos.x, state->target_pos.z);
-    state->target_pos.y = target_h;
-
-    // check collection
-    float dist_to_target = Vector3Distance(state->car_pos, state->target_pos);
-    if (dist_to_target < 5.0f) {
-        state->score++;
-        std::printf("[GAME] collected! score: %d\n", state->score);
-
-        // respawn target close to car
-        state->target_pos.x = state->car_pos.x + (float)GetRandomValue(-40, 40);
-        state->target_pos.z = state->car_pos.z + (float)GetRandomValue(-40, 40);
-        state->target_pos.y = get_terrain_height(state->target_pos.x, state->target_pos.z);
-    }
-}
-
 void update_camera_mut(GameState *state) {
     assert(state != nullptr);
     float dt = GetFrameTime();
@@ -246,10 +227,6 @@ void draw_frame(const GameState *state) {
     if (state->road_mesh_generated) {
         DrawModel(state->road_model, {0.0f, 0.0f, 0.0f}, 1.0f, WHITE);
     }
-
-    // draw target
-    DrawCylinder(state->target_pos, 1.0f, 1.0f, 4.0f, 16, YELLOW);
-    DrawCylinderWires(state->target_pos, 1.0f, 1.0f, 4.0f, 16, ORANGE);
 
     // draw car with rotation
     rlPushMatrix();
@@ -293,9 +270,6 @@ void draw_frame(const GameState *state) {
     // game stats
     char pos_text[64];
     std::snprintf(pos_text, sizeof(pos_text), "X: %.2f Y: %.2f Z: %.2f", state->car_pos.x, state->car_pos.y, state->car_pos.z);
-    char score_text[32];
-    std::snprintf(score_text, sizeof(score_text), "SCORE: %d", state->score);
-    DrawText(score_text, 10, 60, 40, YELLOW);
 
     // log state
     log_state(state, state->frame_count);
@@ -305,22 +279,10 @@ void draw_frame(const GameState *state) {
 
 void game_loop_mut(GameState *state) {
     assert(state != nullptr);
-    state->frame_count++;
-
     update_terrain_mut(state);
     update_physics_mut(state);
-    update_gameplay_mut(state);
     update_camera_mut(state);
     draw_frame(state);
-}
-
-void spawn_initial_target(GameState *state) {
-    if (state == nullptr) {
-        return;
-    }
-    state->target_pos.x = state->car_pos.x + 20.0f; // start nearby for easy testing
-    state->target_pos.z = state->car_pos.z + 20.0f;
-    state->target_pos.y = get_terrain_height(state->target_pos.x, state->target_pos.z);
 }
 
 void init_road_mut(GameState *state) {
@@ -361,7 +323,6 @@ std::int32_t main() {
 
     GameState state{};
     state.texture = load_terrain_texture();
-    spawn_initial_target(&state);
     init_road_mut(&state);
 
     // game loop
