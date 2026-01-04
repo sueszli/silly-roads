@@ -1,3 +1,4 @@
+#include "game_state.hpp"
 #include "raylib.h"
 #include "raymath.h"
 #include "rlgl.h"
@@ -9,26 +10,6 @@
 #include <cstdio>
 #include <cstdlib>
 #include <vector>
-
-struct GameState {
-    Vector3 ball_pos = {60.0f, 20.0f, 60.0f};
-    Vector3 ball_vel = {0.0f, 0.0f, 0.0f};
-
-    Camera3D camera = {
-        .position = {0.0f, 10.0f, 10.0f},
-        .target = {0.0f, 0.0f, 0.0f},
-        .up = {0.0f, 1.0f, 0.0f},
-        .fovy = 45.0f,
-        .projection = CAMERA_PERSPECTIVE,
-    };
-
-    Mesh terrain_mesh = {};
-    Model terrain_model = {};
-    Texture2D texture = {};
-    bool mesh_generated = false;
-    float terrain_offset_x = 0.0f;
-    float terrain_offset_z = 0.0f;
-};
 
 //
 // physics
@@ -138,11 +119,25 @@ void generate_terrain_mesh_mut(GameState *state) {
 }
 
 //
+// loggng
+//
+
+void log_state(const GameState *state, std::int32_t frame) {
+    assert(state != nullptr);
+    float terrain_h = get_terrain_height(state->ball_pos.x, state->ball_pos.z);
+    bool is_on_ground = (state->ball_pos.y <= terrain_h + BALL_RADIUS + 0.01f); // check grounded with epsilon
+
+    std::printf("[FRAME %d] POS:%.2f %.2f %.2f | VEL:%.2f %.2f %.2f | GROUND:%d\n", frame, state->ball_pos.x, state->ball_pos.y, state->ball_pos.z, state->ball_vel.x, state->ball_vel.y, state->ball_vel.z, is_on_ground ? 1 : 0);
+}
+
+//
 // game loop
 //
 
 void game_loop_mut(GameState *state) {
     assert(state != nullptr);
+    static std::int32_t frame = 0;
+    frame++;
 
     // lazy init and regenerate terrain
     if (!state->mesh_generated) {
@@ -178,7 +173,9 @@ void game_loop_mut(GameState *state) {
     char pos_text[64];
     std::snprintf(pos_text, sizeof(pos_text), "X: %.2f Y: %.2f Z: %.2f", state->ball_pos.x, state->ball_pos.y, state->ball_pos.z);
     DrawText(pos_text, 10, 30, 30, BLACK);
-    std::printf("%s\n", pos_text);
+
+    // log state
+    log_state(state, frame);
 
     EndDrawing();
 }
