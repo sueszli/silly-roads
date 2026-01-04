@@ -160,7 +160,7 @@ void generate_road_mesh_mut(GameState *state) {
     if (state->road_mesh_generated) {
         UnloadModel(state->road_model);
     }
-    state->road_mesh = generate_road_mesh(state->road_points, GameState::ROAD_WINDOW_SIZE);
+    state->road_mesh = generate_road_mesh(state->road_points.data(), (int)state->road_points.size());
     UploadMesh(&state->road_mesh, false);
     state->road_model = LoadModelFromMesh(state->road_mesh);
     state->road_model.materials[0].maps[MATERIAL_MAP_DIFFUSE].color = BROWN;
@@ -340,35 +340,28 @@ void update_road_mut(GameState *state) {
     // find closest road point to car
     int closest_idx = 0;
     float min_dist_sq = 1e9f;
-    for (int i = 0; i < GameState::ROAD_WINDOW_SIZE; i++) {
+    for (size_t i = 0; i < state->road_points.size(); i++) {
         Vector3 to_car = Vector3Subtract(state->car_pos, state->road_points[i]);
         float dist_sq = to_car.x * to_car.x + to_car.z * to_car.z; // ignore Y
         if (dist_sq < min_dist_sq) {
             min_dist_sq = dist_sq;
-            closest_idx = i;
+            closest_idx = (int)i;
         }
     }
 
-    // if car has progressed past threshold, shift window forward
-    const int shift_threshold = GameState::ROAD_WINDOW_SIZE / 4;
-    if (closest_idx > shift_threshold) {
-        int shift_amount = shift_threshold;
+    // generate new points if we're near the end
+    int points_ahead = (int)state->road_points.size() - closest_idx;
+    const int min_points_ahead = 64;
 
-        // move existing points back in array
-        for (int i = 0; i < GameState::ROAD_WINDOW_SIZE - shift_amount; i++) {
-            state->road_points[i] = state->road_points[i + shift_amount];
+    if (points_ahead < min_points_ahead) {
+        int to_generate = min_points_ahead - points_ahead;
+        for (int i = 0; i < to_generate; i++) {
+            state->road_points.push_back(generate_next_road_point_mut(state));
         }
 
-        // generate new points at the end using incremental generation
-        for (int i = GameState::ROAD_WINDOW_SIZE - shift_amount; i < GameState::ROAD_WINDOW_SIZE; i++) {
-            state->road_points[i] = generate_next_road_point_mut(state);
-        }
-
-        state->road_start_segment += shift_amount;
-
-        // regenerate mesh
+        // regenerate mesh with all points
         generate_road_mesh_mut(state);
-        std::printf("[ROAD] Shifted window, start_segment=%d\n", state->road_start_segment);
+        std::printf("[ROAD] Generated %d new points, total: %zu\n", to_generate, state->road_points.size());
     }
 }
 
@@ -384,16 +377,17 @@ void init_road_mut(GameState *state) {
     state->road_gen_angle = 0.0f;
     state->road_gen_next_segment = 0;
 
-    // generate initial window of road points
-    for (int i = 0; i < GameState::ROAD_WINDOW_SIZE; i++) {
-        state->road_points[i] = generate_next_road_point_mut(state);
+    // generate initial road ahead
+    state->road_points.clear();
+    state->road_points.reserve(128); // reserve space to avoid reallocations
+
+    for (int i = 0; i < 128; i++) {
+        state->road_points.push_back(generate_next_road_point_mut(state));
     }
 
-    state->road_start_segment = 0;
-    state->road_progress = 0.0f;
     state->road_initialized = true;
     generate_road_mesh_mut(state);
-    std::printf("[ROAD] Generated initial window of %d points\n", GameState::ROAD_WINDOW_SIZE);
+    std::printf("[ROAD] Generated initial %zu points\n", state->road_points.size());
 }
 
 std::int32_t main() {

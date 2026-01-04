@@ -1,6 +1,7 @@
 #pragma once
 #include "raylib.h"
 #include <cstdint>
+#include <vector>
 
 struct WheelState {
     Vector3 local_offset; // position relative to car body
@@ -48,10 +49,7 @@ struct GameState {
     // road
     //
 
-    static constexpr std::int32_t ROAD_WINDOW_SIZE = 128; // sliding window of road points
-    Vector3 road_points[ROAD_WINDOW_SIZE] = {};           // control points
-    std::int32_t road_start_segment = 0;                  // global segment index of first point
-    float road_progress = 0.0f;                           // car's progress along road (in segments)
+    std::vector<Vector3> road_points; // all road control points (grows dynamically)
     bool road_initialized = false;
 
     // road generation state (for continuous generation)
