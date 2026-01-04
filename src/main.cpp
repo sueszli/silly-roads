@@ -13,7 +13,7 @@
 constexpr float BALL_RADIUS = 0.5f;
 constexpr Vector3 PHYS_GRAVITY{0.0f, -1000.0f, 0.0f}; // gravitational force
 constexpr float PHYS_MOVE_FORCE = 2000.0f;            // directional speed by player
-constexpr float PHYS_DRAG = 0.98f;                    // drag coefficient
+constexpr float PHYS_DRAG = 0.995f;                   // drag coefficient
 
 struct GameState {
     Vector3 ball_pos = {60.0f, 20.0f, 60.0f};
@@ -197,6 +197,7 @@ void game_loop_mut(GameState *state) {
     DrawSphere(state->ball_pos, BALL_RADIUS, RED);
     EndMode3D();
 
+    // game stats
     char pos_text[64];
     std::snprintf(pos_text, sizeof(pos_text), "X: %.2f Y: %.2f Z: %.2f", state->ball_pos.x, state->ball_pos.y, state->ball_pos.z);
     DrawText(pos_text, 10, 30, 20, BLACK);
