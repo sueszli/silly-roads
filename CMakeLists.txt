@@ -117,7 +117,7 @@ endif()
 
 include(FetchContent)
 
-FetchContent_Declare(googletest URL https://github.com/google/googletest/archive/refs/tags/v1.17.0.zip)
+FetchContent_Declare(googletest URL https://github.com/google/googletest/archive/refs/tags/v1.17.0.zip DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
 # in windows: prevent overriding the parent project's compiler/linker settings
 set(gtest_force_shared_crt
     ON
@@ -125,7 +125,7 @@ set(gtest_force_shared_crt
 )
 FetchContent_MakeAvailable(googletest)
 
-FetchContent_Declare(raylib URL https://github.com/raysan5/raylib/archive/refs/tags/5.5.tar.gz)
+FetchContent_Declare(raylib URL https://github.com/raysan5/raylib/archive/refs/tags/5.5.tar.gz DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
 set(BUILD_EXAMPLES
     OFF
     CACHE BOOL "" FORCE
