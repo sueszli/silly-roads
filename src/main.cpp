@@ -150,46 +150,48 @@ void log_state(const GameState *state, std::int32_t frame) {
 // game loop
 //
 
-void game_loop_mut(GameState *state) {
+void update_terrain_mut(GameState *state) {
     assert(state != nullptr);
-    static std::int32_t frame = 0;
-    frame++;
-    float dt = GetFrameTime();
-
     // lazy init and regenerate terrain
     if (!state->mesh_generated) {
         generate_terrain_mesh_mut(state);
     }
-
-    // ensure target matches terrain height
-    float target_h = get_terrain_height(state->target_pos.x, state->target_pos.z);
-    state->target_pos.y = target_h;
 
     const float half_size = (GRID_SIZE - 1) * 0.5f;
     const float center_x = state->terrain_offset_x + half_size;
     const float center_z = state->terrain_offset_z + half_size;
     const float dist_x = std::abs(state->car_pos.x - center_x);
     const float dist_z = std::abs(state->car_pos.z - center_z);
+
     if (dist_x > 30.0f || dist_z > 30.0f) {
         state->terrain_offset_x = std::floor(state->car_pos.x - half_size);
         state->terrain_offset_z = std::floor(state->car_pos.z - half_size);
         generate_terrain_mesh_mut(state);
     }
+}
 
-    // update physics
-    update_physics_mut(state);
+void update_gameplay_mut(GameState *state) {
+    assert(state != nullptr);
+    // ensure target matches terrain height
+    float target_h = get_terrain_height(state->target_pos.x, state->target_pos.z);
+    state->target_pos.y = target_h;
 
     // check collection
     float dist_to_target = Vector3Distance(state->car_pos, state->target_pos);
     if (dist_to_target < 5.0f) {
         state->score++;
-        std::printf("[GAME] COLLECTED! Score: %d\n", state->score);
+        std::printf("[GAME] collected! score: %d\n", state->score);
 
         // respawn target close to car
         state->target_pos.x = state->car_pos.x + (float)GetRandomValue(-40, 40);
         state->target_pos.z = state->car_pos.z + (float)GetRandomValue(-40, 40);
         state->target_pos.y = get_terrain_height(state->target_pos.x, state->target_pos.z);
     }
+}
+
+void update_camera_mut(GameState *state) {
+    assert(state != nullptr);
+    float dt = GetFrameTime();
 
     // update camera to follow car (chase cam)
     Vector3 target_cam_pos;
@@ -208,8 +210,10 @@ void game_loop_mut(GameState *state) {
 
     // look at car
     state->camera.target = state->car_pos;
+}
 
-    // render
+void draw_frame(const GameState *state) {
+    assert(state != nullptr);
     BeginDrawing();
     ClearBackground(SKYBLUE);
     BeginMode3D(state->camera);
@@ -239,9 +243,20 @@ void game_loop_mut(GameState *state) {
     DrawText(score_text, 10, 60, 40, YELLOW);
 
     // log state
-    log_state(state, frame);
+    log_state(state, state->frame_count);
 
     EndDrawing();
+}
+
+void game_loop_mut(GameState *state) {
+    assert(state != nullptr);
+    state->frame_count++;
+
+    update_terrain_mut(state);
+    update_physics_mut(state);
+    update_gameplay_mut(state);
+    update_camera_mut(state);
+    draw_frame(state);
 }
 
 void spawn_initial_target(GameState *state) {
