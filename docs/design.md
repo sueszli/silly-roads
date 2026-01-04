@@ -270,6 +270,6 @@ Start with Phase A for quick visual payoff, then Phase B for physics fix, then P
 
 1. **One stage at a time**: Complete verification before proceeding
 2. **Read the log**: stdout is your primary debugging tool
-3. **Compile often**: `make clean && make` after each change
+3. **Compile often**: `make lint && make run` after each change
 4. **Remove collectibles**: After Stage 16, consider removing the yellow cylinder objective in favor of road-following
 5. **Rollback on failure**: If a stage breaks, revert and retry with smaller steps

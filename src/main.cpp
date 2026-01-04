@@ -69,8 +69,37 @@ void update_physics_mut(GameState *state) {
     state->car_vel.x = std::sin(state->car_heading) * state->car_speed;
     state->car_vel.z = std::cos(state->car_heading) * state->car_speed;
 
-    float terrain_h = get_terrain_height(state->car_pos.x, state->car_pos.z);
-    bool is_on_ground = (state->car_pos.y <= terrain_h + BALL_RADIUS);
+    // 4-wheel ground snapping
+    // offsets: FL(-1, 1.5), FR(1, 1.5), RL(-1, -1.5), RR(1, -1.5)
+    // We rotate these offsets by car_heading to get world positions
+    float s = std::sin(state->car_heading);
+    float c = std::cos(state->car_heading);
+
+    // X, Z offsets
+    float wheel_offsets[4][2] = {
+        {-1.0f, 1.5f},  // FL
+        {1.0f, 1.5f},   // FR
+        {-1.0f, -1.5f}, // RL
+        {1.0f, -1.5f}   // RR
+    };
+
+    float avg_height = 0.0f;
+    for (int i = 0; i < 4; i++) {
+        float ox = wheel_offsets[i][0];
+        float oz = wheel_offsets[i][1];
+
+        // rotate offset
+        float wx = state->car_pos.x + (ox * c - oz * s);
+        float wz = state->car_pos.z + (ox * s + oz * c);
+
+        state->wheel_heights[i] = get_terrain_height(wx, wz);
+        avg_height += state->wheel_heights[i];
+    }
+    avg_height /= 4.0f;
+
+    // Use average height + clearance for ground check
+    float ground_y = avg_height + 0.5f;                        // 0.5f clearance
+    bool is_on_ground = (state->car_pos.y <= ground_y + 0.1f); // small epsilon
 
     // soften gravity if mid-air and holding input
     Vector3 effective_gravity = PHYS_GRAVITY;
@@ -86,19 +115,15 @@ void update_physics_mut(GameState *state) {
         Vector3 terrain_normal = get_terrain_normal(state->car_pos.x, state->car_pos.z);
 
         // match vertical velocity to slope
-        // v dot n = 0 -> v_y * n_y + v_x * n_x + v_z * n_z = 0
-        // v_y = -(v_x * n_x + v_z * n_z) / n_y
         if (terrain_normal.y > 0.001f) {
             float slope_y = -(state->car_vel.x * terrain_normal.x + state->car_vel.z * terrain_normal.z) / terrain_normal.y;
             // only apply if it keeps us above ground or pulling down
             state->car_vel.y = slope_y;
         }
 
-        // keep ball on surface
-        if (state->car_pos.y < terrain_h + BALL_RADIUS) {
-            state->car_pos.y = terrain_h + BALL_RADIUS;
-            // damping vertical velocity if slamming into ground?
-            // For arcade feel, we just stick to ground usually.
+        // keep car on surface
+        if (state->car_pos.y < ground_y) {
+            state->car_pos.y = ground_y;
             if (state->car_vel.y < 0)
                 state->car_vel.y = 0;
         }
@@ -140,8 +165,13 @@ void generate_terrain_mesh_mut(GameState *state) {
 
 void log_state(const GameState *state, std::int32_t frame) {
     assert(state != nullptr);
-    float terrain_h = get_terrain_height(state->car_pos.x, state->car_pos.z);
-    bool is_on_ground = (state->car_pos.y <= terrain_h + BALL_RADIUS + 0.01f); // check grounded with epsilon
+    float avg_height = 0.0f;
+    for (int i = 0; i < 4; ++i)
+        avg_height += state->wheel_heights[i];
+    avg_height /= 4.0f;
+
+    // float terrain_h = get_terrain_height(state->car_pos.x, state->car_pos.z);
+    bool is_on_ground = (state->car_pos.y <= avg_height + 0.5f + 0.1f); // 0.5 clearance + epsilon
 
     std::printf("[FRAME %d] CAR_POS:%.2f %.2f %.2f | CAR_VEL:%.2f %.2f %.2f | SPEED:%.2f | HEADING:%.2f | GROUND:%d\n", frame, state->car_pos.x, state->car_pos.y, state->car_pos.z, state->car_vel.x, state->car_vel.y, state->car_vel.z, state->car_speed, state->car_heading, is_on_ground ? 1 : 0);
 }
@@ -229,6 +259,15 @@ void draw_frame(const GameState *state) {
     rlRotatef(state->car_heading * RAD2DEG, 0.0f, 1.0f, 0.0f);
     DrawCube({0.0f, 0.0f, 0.0f}, 2.0f, 1.0f, 4.0f, RED);
     DrawCubeWires({0.0f, 0.0f, 0.0f}, 2.0f, 1.0f, 4.0f, MAROON);
+
+    // draw wheels (4 dark gray cylinders)
+    for (int i = 0; i < 4; i++) {
+        Vector3 wheel_center = state->wheels[i].local_offset;
+        Vector3 wheel_start = {wheel_center.x - 0.1f, wheel_center.y, wheel_center.z};
+        Vector3 wheel_end = {wheel_center.x + 0.1f, wheel_center.y, wheel_center.z};
+        DrawCylinderEx(wheel_start, wheel_end, 0.3f, 0.3f, 16, DARKGRAY);
+    }
+
     rlPopMatrix();
 
     EndMode3D();
