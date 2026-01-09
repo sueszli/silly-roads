@@ -50,6 +50,7 @@ Mesh generate_road_mesh(const Vector3 *points, std::int32_t count) {
 
     // 3 vertices per sample (left, center, right)
     mesh.vertexCount = total_samples * 3;
+
     // 4 triangles per segment (2 per strip)
     mesh.triangleCount = (total_samples - 1) * 4;
     mesh.vertices = static_cast<float *>(MemAlloc(static_cast<unsigned int>(mesh.vertexCount) * 3 * sizeof(float)));

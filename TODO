@@ -8,9 +8,6 @@ huge code refactor, more functional style.
 - graphics module where you have functions for shapes of objects (ie. render_car which calls render_wheel)
 - physics module
 
-
-
-
 better pickup truck models
 wiggly and silly looking suspensions and wheels
 markings in the middle of the road, trees
