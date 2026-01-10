@@ -5,13 +5,14 @@ todo:
 - start with car on the road
 - fix warnings
 
-- huge code refactor, more functional style.
-    - graphics module where you have functions for shapes of objects (ie. render_car which calls render_wheel)
-    - physics module
+- refactor
+    - functional style, more concise and to the point
+    - smaller interfaces, make more stuff private
+    - main.ccp just delegates stuff around
+    - graphics module, physics module
 
+- prettier car, air time, wiggly suspensions
 - markings in the middle of the road, trees
-- better car model
-- air time, wiggly suspensions
 - space for boost with fire particles
 
 
