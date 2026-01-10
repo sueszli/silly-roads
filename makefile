@@ -1,16 +1,13 @@
+# 
+# dev builds
+# 
+
 DEFAULT_BUILD_DIR := $(PWD)/build/default
 .PHONY: run
 run: lint fmt
 	cmake -B $(DEFAULT_BUILD_DIR) -S . -DCMAKE_CXX_COMPILER=$(shell which clang++)
 	cmake --build $(DEFAULT_BUILD_DIR) -j$(shell sysctl -n hw.ncpu)
 	ASAN_OPTIONS=detect_leaks=1 LSAN_OPTIONS=suppressions=$(PWD)/suppressions-asan.txt:print_suppressions=0 $(DEFAULT_BUILD_DIR)/binary
-
-RELEASE_BUILD_DIR := $(PWD)/build/release
-.PHONY: run-release
-run-release: lint fmt
-	cmake -B $(RELEASE_BUILD_DIR) -S . -DCMAKE_CXX_COMPILER=$(shell which clang++) -DCMAKE_BUILD_TYPE=Release -DDISABLE_ASAN=ON -DDISABLE_UBSAN=ON -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_BUILD_TYPE=Release
-	cmake --build $(RELEASE_BUILD_DIR) -j$(shell sysctl -n hw.ncpu)
-	$(RELEASE_BUILD_DIR)/binary
 
 LEAKS_BUILD_DIR := $(PWD)/build/leaks
 .PHONY: leaks
@@ -26,9 +23,16 @@ leaks: lint fmt
 		-exclude __createContextTelemetryDataWithQueueLabelAndCallstack_block_invoke \
 		-- $(LEAKS_BUILD_DIR)/binary
 
-#
-# utils
-#
+# 
+# release builds
+# 
+
+RELEASE_BUILD_DIR := $(PWD)/build/release
+.PHONY: run-release
+run-release: lint fmt
+	cmake -B $(RELEASE_BUILD_DIR) -S . -DCMAKE_CXX_COMPILER=$(shell which clang++) -DCMAKE_BUILD_TYPE=Release -DDISABLE_ASAN=ON -DDISABLE_UBSAN=ON -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_BUILD_TYPE=Release
+	cmake --build $(RELEASE_BUILD_DIR) -j$(shell sysctl -n hw.ncpu)
+	$(RELEASE_BUILD_DIR)/binary
 
 WASM_BUILD_DIR := $(PWD)/build/wasm
 .PHONY: wasm
@@ -42,6 +46,10 @@ wasm:
 		/bin/bash -c "emcmake cmake -B build/wasm -S . -DPLATFORM=Web -DCMAKE_BUILD_TYPE=Release -DDISABLE_ASAN=ON -DDISABLE_UBSAN=ON -DCMAKE_EXECUTABLE_SUFFIX='.html' -DCMAKE_EXECUTABLE_SUFFIX_CXX='.html' -DCMAKE_EXE_LINKER_FLAGS='-sASYNCIFY -sUSE_GLFW=3 -sGL_ENABLE_GET_PROC_ADDRESS' && cmake --build build/wasm"
 	open http://localhost:8000/binary.html
 	python3 -m http.server --directory $(WASM_BUILD_DIR) 8000
+
+# 
+# tools
+# 
 
 TEST_BUILD_DIR := $(PWD)/build/test
 .PHONY: test
