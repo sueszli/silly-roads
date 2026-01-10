@@ -10,15 +10,3 @@
  * @return Dense list of interpolated points
  */
 std::vector<Vector3> generate_road_path(const std::vector<Vector3> &control_points);
-
-/**
- * Returns a list of road segments (pairs of points) that are within or near the given bounding box.
- * @param path Dense path of points
- * @param min_x Min X of bounding box
- * @param min_z Min Z of bounding box
- * @param max_x Max X of bounding box
- * @param max_z Max Z of bounding box
- * @param margin Margin to inflate the bounding box by (for road width)
- * @return List of segments (start, end)
- */
-std::vector<std::pair<Vector3, Vector3>> get_road_segments_in_bounds(const std::vector<Vector3> &path, float min_x, float min_z, float max_x, float max_z, float margin);

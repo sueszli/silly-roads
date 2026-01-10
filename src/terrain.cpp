@@ -66,6 +66,37 @@ float sample_noise(float x, float y, float z) {
     return lerp(w, lerp(v, lerp(u, grad(p[static_cast<std::size_t>(AA)], x, y, z), grad(p[static_cast<std::size_t>(BA)], x - 1, y, z)), lerp(u, grad(p[static_cast<std::size_t>(AB)], x, y - 1, z), grad(p[static_cast<std::size_t>(BB)], x - 1, y - 1, z))), lerp(v, lerp(u, grad(p[static_cast<std::size_t>(AA) + 1], x, y, z - 1), grad(p[static_cast<std::size_t>(BA) + 1], x - 1, y, z - 1)), lerp(u, grad(p[static_cast<std::size_t>(AB) + 1], x, y - 1, z - 1), grad(p[static_cast<std::size_t>(BB) + 1], x - 1, y - 1, z - 1))));
 }
 
+std::vector<std::pair<Vector3, Vector3>> get_road_segments_in_bounds(const std::vector<Vector3> &path, float min_x, float min_z, float max_x, float max_z, float margin) {
+    std::vector<std::pair<Vector3, Vector3>> segments;
+    if (path.size() < 2) {
+        return segments;
+    }
+
+    // Expand bounds by margin
+    float search_min_x = min_x - margin;
+    float search_min_z = min_z - margin;
+    float search_max_x = max_x + margin;
+    float search_max_z = max_z + margin;
+
+    for (size_t i = 0; i < path.size() - 1; ++i) {
+        Vector3 p1 = path[i];
+        Vector3 p2 = path[i + 1];
+
+        // Calculate segment bounding box
+        float seg_min_x = (p1.x < p2.x) ? p1.x : p2.x;
+        float seg_max_x = (p1.x > p2.x) ? p1.x : p2.x;
+        float seg_min_z = (p1.z < p2.z) ? p1.z : p2.z;
+        float seg_max_z = (p1.z > p2.z) ? p1.z : p2.z;
+
+        // Check for overlap
+        if (seg_max_x >= search_min_x && seg_min_x <= search_max_x && seg_max_z >= search_min_z && seg_min_z <= search_max_z) {
+            segments.push_back({p1, p2});
+        }
+    }
+
+    return segments;
+}
+
 } // namespace
 
 /** calculates height using 2d world coordinates and noise */
