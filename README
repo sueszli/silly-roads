@@ -9,10 +9,9 @@ todo:
     - graphics module where you have functions for shapes of objects (ie. render_car which calls render_wheel)
     - physics module
 
-- better car model
-- air time
-- wiggly and silly looking suspensions and wheels
 - markings in the middle of the road, trees
+- better car model
+- air time, wiggly suspensions
 - space for boost with fire particles
 
 
