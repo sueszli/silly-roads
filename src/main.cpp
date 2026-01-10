@@ -160,7 +160,8 @@ void generate_road_mesh_mut(GameState *state) {
     if (state->road_mesh_generated) {
         UnloadModel(state->road_model);
     }
-    state->road_mesh = generate_road_mesh(state->road_points.data(), (int)state->road_points.size());
+    std::vector<Vector3> dense_points = generate_road_path(state->road_points);
+    state->road_mesh = generate_road_mesh(dense_points);
     UploadMesh(&state->road_mesh, false);
     state->road_model = LoadModelFromMesh(state->road_mesh);
     state->road_model.materials[0].maps[MATERIAL_MAP_DIFFUSE].color = BROWN;

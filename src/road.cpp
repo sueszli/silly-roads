@@ -18,50 +18,32 @@ Vector3 catmull_rom(Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3, float t) {
 
 } // namespace
 
-Mesh generate_road_mesh(const Vector3 *points, std::int32_t count) {
+Mesh generate_road_mesh(const std::vector<Vector3> &center_points) {
     Mesh mesh = {};
-    if (count < 2) {
+    if (center_points.size() < 2) {
         return mesh;
     }
 
-    const int samples_per_segment = 40;
-    const int total_samples = (count - 1) * samples_per_segment + 1;
     const float road_width = 8.0f;
-
-    std::vector<Vector3> center_points(static_cast<std::size_t>(total_samples));
-
-    for (int i = 0; i < total_samples; i++) {
-        float global_t = (float)i / (float)samples_per_segment;
-        int segment = (int)global_t;
-        float local_t = global_t - (float)segment;
-
-        if (segment >= count - 1) {
-            segment = count - 2;
-            local_t = 1.0f;
-        }
-
-        int i0 = (segment > 0) ? segment - 1 : 0;
-        int i1 = segment;
-        int i2 = segment + 1;
-        int i3 = (segment + 2 < count) ? segment + 2 : count - 1;
-
-        center_points[static_cast<std::size_t>(i)] = catmull_rom(points[i0], points[i1], points[i2], points[i3], local_t);
-    }
+    std::size_t total_samples = center_points.size();
 
     // 3 vertices per sample (left, center, right)
-    mesh.vertexCount = total_samples * 3;
+    mesh.vertexCount = (int)total_samples * 3;
 
     // 4 triangles per segment (2 per strip)
-    mesh.triangleCount = (total_samples - 1) * 4;
+    mesh.triangleCount = ((int)total_samples - 1) * 4;
     mesh.vertices = static_cast<float *>(MemAlloc(static_cast<unsigned int>(mesh.vertexCount) * 3 * sizeof(float)));
     mesh.normals = static_cast<float *>(MemAlloc(static_cast<unsigned int>(mesh.vertexCount) * 3 * sizeof(float)));
     mesh.texcoords = static_cast<float *>(MemAlloc(static_cast<unsigned int>(mesh.vertexCount) * 2 * sizeof(float)));
     mesh.indices = static_cast<unsigned short *>(MemAlloc(static_cast<unsigned int>(mesh.triangleCount) * 3 * sizeof(unsigned short)));
 
-    for (int i = 0; i < total_samples; i++) {
+    const int samples_per_segment = 40; // Kept for texture coord calculation, though passed-in points size matters more now.
+                                        // Ideally texture calc should depend on arc length or similar, but keeping logic consistent.
+
+    for (int i = 0; i < (int)total_samples; i++) {
         Vector3 p = center_points[static_cast<std::size_t>(i)];
         Vector3 tangent;
-        if (i < total_samples - 1) {
+        if (i < (int)total_samples - 1) {
             tangent = Vector3Subtract(center_points[static_cast<std::size_t>(i + 1)], p);
         } else {
             tangent = Vector3Subtract(p, center_points[static_cast<std::size_t>(i - 1)]);
@@ -115,7 +97,7 @@ Mesh generate_road_mesh(const Vector3 *points, std::int32_t count) {
         mesh.texcoords[(v_idx + 2) * 2 + 1] = v;
     }
 
-    for (int i = 0; i < total_samples - 1; i++) {
+    for (int i = 0; i < (int)total_samples - 1; i++) {
         // vertices for row i: (i*3, i*3+1, i*3+2)
         // vertices for row i+1: ((i+1)*3, (i+1)*3+1, (i+1)*3+2)
         int cur = i * 3;
@@ -143,4 +125,36 @@ Mesh generate_road_mesh(const Vector3 *points, std::int32_t count) {
     }
 
     return mesh;
+}
+
+std::vector<Vector3> generate_road_path(const std::vector<Vector3> &points) {
+    if (points.size() < 2) {
+        return {};
+    }
+
+    const int samples_per_segment = 40;
+    const int count = (int)points.size();
+    const int total_samples = (count - 1) * samples_per_segment + 1;
+
+    std::vector<Vector3> center_points(static_cast<std::size_t>(total_samples));
+
+    for (int i = 0; i < total_samples; i++) {
+        float global_t = (float)i / (float)samples_per_segment;
+        int segment = (int)global_t;
+        float local_t = global_t - (float)segment;
+
+        if (segment >= count - 1) {
+            segment = count - 2;
+            local_t = 1.0f;
+        }
+
+        int i0 = (segment > 0) ? segment - 1 : 0;
+        int i1 = segment;
+        int i2 = segment + 1;
+        int i3 = (segment + 2 < count) ? segment + 2 : count - 1;
+
+        center_points[static_cast<std::size_t>(i)] = catmull_rom(points[i0], points[i1], points[i2], points[i3], local_t);
+    }
+
+    return center_points;
 }
