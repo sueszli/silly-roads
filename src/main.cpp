@@ -11,6 +11,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <vector>
+#include <algorithm>
 
 //
 // forward declarations
@@ -142,27 +143,63 @@ Texture2D load_terrain_texture() {
     return texture;
 }
 
-void generate_terrain_mesh_mut(GameState *state) {
-    // upload mesh to GPU and assign the texture
+void update_terrain_mut(GameState *state) {
     assert(state != nullptr);
-    if (state->mesh_generated) {
-        UnloadModel(state->terrain_model);
+
+    float chunk_world_size = (GRID_SIZE - 1) * TILE_SIZE;
+    state->chunk_size = chunk_world_size;
+
+    int center_cx = (int)std::floor(state->car_pos.x / chunk_world_size);
+    int center_cz = (int)std::floor(state->car_pos.z / chunk_world_size);
+
+    // 5x5 Grid (radius 2)
+    int render_radius = 2; // -2 to +2
+
+    // 1. Identify valid chunks
+    std::vector<GameState::TerrainChunk> new_chunks;
+    new_chunks.reserve(state->terrain_chunks.size());
+
+    // Keep existing chunks that are in range
+    for (const auto &chunk : state->terrain_chunks) {
+        if (std::abs(chunk.cx - center_cx) <= render_radius && std::abs(chunk.cz - center_cz) <= render_radius) {
+            new_chunks.push_back(chunk);
+        } else {
+            // Unload
+            UnloadModel(chunk.model);
+        }
     }
-    // Pass dense_road_points to generate_terrain_mesh_data
-    state->terrain_mesh = generate_terrain_mesh_data(state->terrain_offset_x, state->terrain_offset_z, state->dense_road_points);
-    UploadMesh(&state->terrain_mesh, false);
-    state->terrain_model = LoadModelFromMesh(state->terrain_mesh);
-    state->terrain_model.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = state->texture;
-    state->mesh_generated = true;
+    state->terrain_chunks = std::move(new_chunks);
+
+    // 2. Identify missing chunks and load them
+    for (int z = -render_radius; z <= render_radius; z++) {
+        for (int x = -render_radius; x <= render_radius; x++) {
+            int target_cx = center_cx + x;
+            int target_cz = center_cz + z;
+
+            bool exists = std::any_of(state->terrain_chunks.begin(), state->terrain_chunks.end(), [target_cx, target_cz](const GameState::TerrainChunk &chunk) { return chunk.cx == target_cx && chunk.cz == target_cz; });
+
+            if (!exists) {
+                // Generate chunk
+                float ox = (float)target_cx * chunk_world_size;
+                float oz = (float)target_cz * chunk_world_size;
+
+                Mesh mesh = generate_terrain_mesh_data(ox, oz, state->dense_road_points);
+                UploadMesh(&mesh, false);
+
+                Model model = LoadModelFromMesh(mesh);
+                model.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = state->texture;
+
+                state->terrain_chunks.push_back({target_cx, target_cz, model});
+            }
+        }
+    }
 }
 
-// generate_road_mesh_mut removed as road is now part of terrain texture
-
 //
-// loggng
+// logging
 //
 
-void log_state(const GameState *state, std::int32_t frame) {
+void log_state(const GameState *state, std::int32_t /*frame*/) {
     assert(state != nullptr);
     std::printf("CAR_POS:%.2f %.2f %.2f | SPEED:%.2f | HEADING:%.2f | PITCH:%.2f | ROLL:%.2f | WHEEL_STEER:%.2f\n", state->car_pos.x, state->car_pos.y, state->car_pos.z, state->car_speed, state->car_heading, state->car_pitch, state->car_roll, state->wheels[0].steering_angle);
 }
@@ -170,26 +207,6 @@ void log_state(const GameState *state, std::int32_t frame) {
 //
 // game loop
 //
-
-void update_terrain_mut(GameState *state) {
-    assert(state != nullptr);
-    // lazy init and regenerate terrain
-    if (!state->mesh_generated) {
-        generate_terrain_mesh_mut(state);
-    }
-
-    const float half_size = (GRID_SIZE - 1) * 0.5f;
-    const float center_x = state->terrain_offset_x + half_size;
-    const float center_z = state->terrain_offset_z + half_size;
-    const float dist_x = std::abs(state->car_pos.x - center_x);
-    const float dist_z = std::abs(state->car_pos.z - center_z);
-
-    if (dist_x > 30.0f || dist_z > 30.0f) {
-        state->terrain_offset_x = std::floor(state->car_pos.x - half_size);
-        state->terrain_offset_z = std::floor(state->car_pos.z - half_size);
-        generate_terrain_mesh_mut(state);
-    }
-}
 
 void update_camera_mut(GameState *state) {
     assert(state != nullptr);
@@ -209,8 +226,6 @@ void update_camera_mut(GameState *state) {
     if (state->camera.position.y < cam_terrain_h + 2.0f) {
         state->camera.position.y = cam_terrain_h + 2.0f;
     }
-
-    // look at car
     state->camera.target = state->car_pos;
 }
 
@@ -218,35 +233,42 @@ void draw_frame(const GameState *state) {
     assert(state != nullptr);
     BeginDrawing();
     ClearBackground(SKYBLUE);
-    BeginMode3D(state->camera);
-    DrawModel(state->terrain_model, {state->terrain_offset_x, 0.0f, state->terrain_offset_z}, 1.0f, WHITE);
 
-    // draw car with rotation
+    BeginMode3D(state->camera);
+
+    // Draw all chunks
+    for (const auto &chunk : state->terrain_chunks) {
+        float chunk_world_size = (GRID_SIZE - 1) * TILE_SIZE;
+        float ox = (float)chunk.cx * chunk_world_size;
+        float oz = (float)chunk.cz * chunk_world_size;
+        Vector3 pos = {ox, 0.0f, oz};
+
+        DrawModel(chunk.model, pos, 1.0f, WHITE);
+    }
+
+    //
+    // car rendering
+    //
+
     rlPushMatrix();
     rlTranslatef(state->car_pos.x, state->car_pos.y, state->car_pos.z);
+
+    // car body
     rlRotatef(state->car_heading * RAD2DEG, 0.0f, 1.0f, 0.0f);
     rlRotatef(state->car_pitch * RAD2DEG, 1.0f, 0.0f, 0.0f);
     rlRotatef(state->car_roll * RAD2DEG, 0.0f, 0.0f, 1.0f);
 
-    // pickup truck body (multi-box shape)
-    // cabin: box at (0, 0.5, 0.8), size (1.8, 1.0, 1.5)
-    DrawCube({0.0f, 0.5f, 0.8f}, 1.8f, 1.0f, 1.5f, BLUE);
-    DrawCubeWires({0.0f, 0.5f, 0.8f}, 1.8f, 1.0f, 1.5f, DARKBLUE);
-    // bed: box at (0, 0.3, -0.95), size (1.8, 0.6, 2.0)
-    DrawCube({0.0f, 0.3f, -0.95f}, 1.8f, 0.6f, 2.0f, BLUE);
-    DrawCubeWires({0.0f, 0.3f, -0.95f}, 1.8f, 0.6f, 2.0f, DARKBLUE);
-    // hood: box at (0, 0.2, 1.8), size (1.6, 0.4, 0.8)
-    DrawCube({0.0f, 0.2f, 1.8f}, 1.6f, 0.4f, 0.8f, BLUE);
-    DrawCubeWires({0.0f, 0.2f, 1.8f}, 1.6f, 0.4f, 0.8f, DARKBLUE);
+    // simple box car
+    DrawCube({0.0f, 0.5f, 0.0f}, 2.0f, 1.0f, 4.0f, RED);
+    DrawCube({0.0f, 0.5f, 1.0f}, 1.8f, 0.8f, 2.0f, MAROON); // cabin
 
-    // draw wheels (4 dark gray cylinders)
+    // wheels
     for (int i = 0; i < 4; i++) {
         rlPushMatrix();
-        Vector3 wheel_center = state->wheels[i].local_offset;
-        rlTranslatef(wheel_center.x, wheel_center.y, wheel_center.z);
+        rlTranslatef(state->wheels[i].local_offset.x, state->wheels[i].local_offset.y, state->wheels[i].local_offset.z);
 
-        // apply steering rotation to front wheels
-        if (i < 2) { // front wheels
+        // steering
+        if (i < 2) {
             rlRotatef(state->wheels[i].steering_angle * RAD2DEG, 0.0f, 1.0f, 0.0f);
         }
 
@@ -262,12 +284,13 @@ void draw_frame(const GameState *state) {
 
     // game stats
     char pos_text[64];
-    std::snprintf(pos_text, sizeof(pos_text), "X: %.2f Y: %.2f Z: %.2f", state->car_pos.x, state->car_pos.y, state->car_pos.z);
+    std::snprintf(pos_text, sizeof(pos_text), "X: %.2f Y: %.2f Z: %.2f | Chunks: %zu", state->car_pos.x, state->car_pos.y, state->car_pos.z, state->terrain_chunks.size());
 
     // draw speed on screen
     char speed_text[64];
     std::snprintf(speed_text, sizeof(speed_text), "SPEED: %.2f", state->car_speed);
     DrawText(speed_text, 10, 40, 20, WHITE);
+    DrawText(pos_text, 10, 60, 20, LIGHTGRAY); // Show Stats
 
     // log state
     log_state(state, state->frame_count);
@@ -277,9 +300,9 @@ void draw_frame(const GameState *state) {
 
 void game_loop_mut(GameState *state) {
     assert(state != nullptr);
+    update_road_mut(state); // Update road first to have points for terrain
     update_terrain_mut(state);
     update_physics_mut(state);
-    update_road_mut(state);
     update_camera_mut(state);
     draw_frame(state);
 }
@@ -352,16 +375,13 @@ void update_road_mut(GameState *state) {
         if (closest_idx > keep_behind + 16) {
             int prune_count = closest_idx - keep_behind;
             state->road_points.erase(state->road_points.begin(), state->road_points.begin() + prune_count);
-            std::printf("[ROAD] Pruned %d old points, new size: %zu\n", prune_count, state->road_points.size());
         }
 
         // regenerate dense points
         state->dense_road_points = generate_road_path(state->road_points);
 
-        // Force terrain regeneration to update the road on it
-        state->mesh_generated = false;
-
-        std::printf("[ROAD] Generated %d new points, total: %zu\n", to_generate, state->road_points.size());
+        // Chunks intersecting the new road might need update,
+        // but for now, we assume simple generation is enough as road is static in old chunks.
     }
 }
 
@@ -387,8 +407,6 @@ void init_road_mut(GameState *state) {
 
     state->road_initialized = true;
     state->dense_road_points = generate_road_path(state->road_points);
-    // Force terrain regeneration
-    state->mesh_generated = false;
     std::printf("[ROAD] Generated initial %zu points\n", state->road_points.size());
 }
 
@@ -400,13 +418,31 @@ std::int32_t main() {
     state.texture = load_terrain_texture();
     init_road_mut(&state);
 
+    // Initial car placement on road
+    if (!state.road_points.empty()) {
+        Vector3 start = state.road_points[0];
+        Vector3 next = state.road_points[1];
+        state.car_pos = start;
+        state.car_pos.y = get_terrain_height(start.x, start.z) + 2.0f; // Initial drop height
+
+        // Face the road direction
+        float dx = next.x - start.x;
+        float dz = next.z - start.z;
+        state.car_heading = std::atan2(dx, dz);
+    }
+
+    // Force initial terrain update for chunks
+    update_terrain_mut(&state);
+
     // game loop
     while (!WindowShouldClose()) {
         game_loop_mut(&state);
     }
 
     // cleanup
-    UnloadModel(state.terrain_model);
+    for (const auto &chunk : state.terrain_chunks) {
+        UnloadModel(chunk.model);
+    }
 
     UnloadTexture(state.texture);
     CloseWindow();

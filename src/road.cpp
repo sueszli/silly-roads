@@ -44,7 +44,7 @@ std::vector<Vector3> generate_road_path(const std::vector<Vector3> &control_poin
         int i2 = segment + 1;
         int i3 = (segment + 2 < count) ? segment + 2 : count - 1;
 
-        center_points[static_cast<std::size_t>(i)] = catmull_rom(control_points[i0], control_points[i1], control_points[i2], control_points[i3], local_t);
+        center_points[static_cast<std::size_t>(i)] = catmull_rom(control_points[static_cast<std::size_t>(i0)], control_points[static_cast<std::size_t>(i1)], control_points[static_cast<std::size_t>(i2)], control_points[static_cast<std::size_t>(i3)], local_t);
     }
 
     return center_points;

@@ -5,7 +5,10 @@
 #include <vector>
 
 /** total vertices along one axis; defines both resolution and world size (width = grid_size - 1 units) */
-constexpr std::int32_t GRID_SIZE = 256;
+constexpr std::int32_t GRID_SIZE = 128;
+
+/** size of each tile in world units */
+constexpr float TILE_SIZE = 1.0f;
 
 /** returns the calculated terrain elevation (y) at world coordinates (x, z) */
 float get_terrain_height(float x, float z);

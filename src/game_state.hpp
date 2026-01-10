@@ -36,12 +36,15 @@ struct GameState {
     // terrain
     //
 
-    Mesh terrain_mesh = {};
-    Model terrain_model = {};
+    struct TerrainChunk {
+        int cx; // chunk grid x coordinate
+        int cz; // chunk grid z coordinate
+        Model model;
+    };
+
+    std::vector<TerrainChunk> terrain_chunks;
     Texture2D texture = {};
-    bool mesh_generated = false;
-    float terrain_offset_x = 0.0f;
-    float terrain_offset_z = 0.0f;
+    float chunk_size = 0.0f; // stored for convenience (=(GRID_SIZE-1)*TILE_SIZE)
 
     std::int32_t frame_count = 0;
 
