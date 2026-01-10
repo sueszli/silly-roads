@@ -16,6 +16,3 @@ Enable efficient querying of road geometry during terrain generation. We need to
     *   Iterate through the dense path.
     *   For each segment (point `i` to `i+1`), check if its bounding box overlaps the query box (inflated by a margin for road width).
     *   Return the filtered list.
-
-## Prompt
-To execute this task, use the following prompt:
