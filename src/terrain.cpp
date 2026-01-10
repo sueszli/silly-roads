@@ -1,4 +1,6 @@
 #include "terrain.hpp"
+#include "raymath.h"
+#include "road.hpp"
 
 #include <algorithm>
 #include <cassert>
@@ -95,7 +97,7 @@ Vector3 get_terrain_normal(float x, float z) {
 }
 
 /** builds the mesh buffers for the grid */
-Mesh generate_terrain_mesh_data(float offset_x, float offset_z) {
+Mesh generate_terrain_mesh_data(float offset_x, float offset_z, const std::vector<Vector3> &road_path) {
     Mesh mesh{};
     // each grid cell has two triangles
     mesh.triangleCount = (GRID_SIZE - 1) * (GRID_SIZE - 1) * 2;
@@ -112,10 +114,78 @@ Mesh generate_terrain_mesh_data(float offset_x, float offset_z) {
     assert(mesh.texcoords != nullptr);
     assert(mesh.colors != nullptr);
 
+    // Filter road segments relevant to this terrain chunk
+    // Margin covers road width (8) + fade (2) + some safety
+    constexpr float margin = 12.0f;
+    const float min_x_world = offset_x;
+    const float min_z_world = offset_z;
+    const float max_x_world = offset_x + (GRID_SIZE - 1) * TILE_SIZE;
+    const float max_z_world = offset_z + (GRID_SIZE - 1) * TILE_SIZE;
+
+    // Pre-calculate distance map (SDF) for the grid
+    // Initialize with large distance
+    std::vector<float> dist_map(static_cast<size_t>(GRID_SIZE * GRID_SIZE), 1e9f);
+
+    // Retrieve relevant segments
+    auto segments = get_road_segments_in_bounds(road_path, min_x_world, min_z_world, max_x_world, max_z_world, margin);
+
+    constexpr float ROAD_WIDTH = 8.0f;
+    constexpr float HALF_ROAD_WIDTH = ROAD_WIDTH * 0.5f;
+    constexpr float FADE_WIDTH = 2.0f;
+
+    // Fill SDF grid by iterating segments (scatter approach)
+    for (const auto &seg : segments) {
+        Vector3 p1 = seg.first;
+        Vector3 p2 = seg.second;
+
+        // Bounding box of segment in world space (inflated)
+        float s_min_x = std::min(p1.x, p2.x) - (HALF_ROAD_WIDTH + FADE_WIDTH + 1.0f);
+        float s_max_x = std::max(p1.x, p2.x) + (HALF_ROAD_WIDTH + FADE_WIDTH + 1.0f);
+        float s_min_z = std::min(p1.z, p2.z) - (HALF_ROAD_WIDTH + FADE_WIDTH + 1.0f);
+        float s_max_z = std::max(p1.z, p2.z) + (HALF_ROAD_WIDTH + FADE_WIDTH + 1.0f);
+
+        // Convert to local grid indices (clamped)
+        int x_start = std::max(0, (int)std::floor((s_min_x - offset_x) / TILE_SIZE));
+        int x_end = std::min(GRID_SIZE - 1, (int)std::ceil((s_max_x - offset_x) / TILE_SIZE));
+        int z_start = std::max(0, (int)std::floor((s_min_z - offset_z) / TILE_SIZE));
+        int z_end = std::min(GRID_SIZE - 1, (int)std::ceil((s_max_z - offset_z) / TILE_SIZE));
+
+        Vector3 ab = Vector3Subtract(p2, p1);
+        Vector3 ab2d = {ab.x, 0, ab.z}; // Flatten for 2D distance
+        float ab2d_lensq = ab2d.x * ab2d.x + ab2d.z * ab2d.z;
+
+        for (int z = z_start; z <= z_end; z++) {
+            for (int x = x_start; x <= x_end; x++) {
+                float wx = offset_x + (float)x * TILE_SIZE;
+                float wz = offset_z + (float)z * TILE_SIZE;
+
+                Vector3 ap = {wx - p1.x, 0, wz - p1.z};
+
+                float t = 0.0f;
+                if (ab2d_lensq > 0.0001f) {
+                    t = (ap.x * ab2d.x + ap.z * ab2d.z) / ab2d_lensq;
+                    t = std::max(0.0f, std::min(1.0f, t));
+                }
+
+                Vector3 closest = {p1.x + ab2d.x * t, 0, p1.z + ab2d.z * t};
+
+                float dx = wx - closest.x;
+                float dz = wz - closest.z;
+                float dist_sq = dx * dx + dz * dz;
+
+                // Update min distance
+                float &current = dist_map[(size_t)(z * GRID_SIZE + x)];
+                if (dist_sq < current) {
+                    current = dist_sq;
+                }
+            }
+        }
+    }
+
     std::int32_t v_counter = 0;
 
     // helper to add a vertex to the mesh buffers
-    const auto push_vert = [&](float px, float py, float pz, float nx, float ny, float nz, float u, float v) {
+    const auto push_vert = [&](std::int32_t grid_x, std::int32_t grid_z, float px, float py, float pz, float nx, float ny, float nz, float u, float v) {
         assert(v_counter < mesh.vertexCount);
         // store position components
         mesh.vertices[v_counter * 3] = px;
@@ -128,11 +198,35 @@ Mesh generate_terrain_mesh_data(float offset_x, float offset_z) {
         // store texture coordinates
         mesh.texcoords[v_counter * 2] = u;
         mesh.texcoords[v_counter * 2 + 1] = v;
-        // store vertex colors (default gray)
-        mesh.colors[v_counter * 4] = 100;
-        mesh.colors[v_counter * 4 + 1] = 100;
-        mesh.colors[v_counter * 4 + 2] = 100;
-        mesh.colors[v_counter * 4 + 3] = 255;
+
+        // Determine color
+        constexpr Color ROAD_COLOR = BROWN;
+        constexpr Color TERRAIN_COLOR_1 = DARKGREEN;
+        constexpr Color TERRAIN_COLOR_2 = GREEN;
+
+        bool is_dark = ((grid_x + grid_z) % 2) == 0;
+        Color terrain_col = is_dark ? TERRAIN_COLOR_1 : TERRAIN_COLOR_2;
+        Color final_color = terrain_col;
+
+        float dist_sq = dist_map[(size_t)(grid_z * GRID_SIZE + grid_x)];
+        float dist = std::sqrt(dist_sq);
+
+        if (dist < HALF_ROAD_WIDTH) {
+            final_color = ROAD_COLOR;
+        } else if (dist < HALF_ROAD_WIDTH + FADE_WIDTH) {
+            float t = (dist - HALF_ROAD_WIDTH) / FADE_WIDTH;
+            // Lerp
+            unsigned char r = (unsigned char)(ROAD_COLOR.r + t * (terrain_col.r - ROAD_COLOR.r));
+            unsigned char g = (unsigned char)(ROAD_COLOR.g + t * (terrain_col.g - ROAD_COLOR.g));
+            unsigned char b = (unsigned char)(ROAD_COLOR.b + t * (terrain_col.b - ROAD_COLOR.b));
+            final_color = {r, g, b, 255};
+        }
+
+        mesh.colors[v_counter * 4] = final_color.r;
+        mesh.colors[v_counter * 4 + 1] = final_color.g;
+        mesh.colors[v_counter * 4 + 2] = final_color.b;
+        mesh.colors[v_counter * 4 + 3] = final_color.a;
+
         v_counter++;
     };
 
@@ -156,15 +250,15 @@ Mesh generate_terrain_mesh_data(float offset_x, float offset_z) {
         const Vector3 n1 = get_terrain_normal(x1 + offset_x, z1 + offset_z);
 
         // first triangle of the quad
-        push_vert(x1, y1, z1, n1.x, n1.y, n1.z, 0.0f, 0.0f);
-        push_vert(x3, y3, z3, n1.x, n1.y, n1.z, 0.0f, 1.0f);
-        push_vert(x2, y2, z2, n1.x, n1.y, n1.z, 1.0f, 0.0f);
+        push_vert(x, z, x1, y1, z1, n1.x, n1.y, n1.z, 0.0f, 0.0f);
+        push_vert(x, z + 1, x3, y3, z3, n1.x, n1.y, n1.z, 0.0f, 1.0f);
+        push_vert(x + 1, z, x2, y2, z2, n1.x, n1.y, n1.z, 1.0f, 0.0f);
 
         // second triangle of the quad (flat normal for now)
         const Vector3 n2 = {0.0f, 1.0f, 0.0f};
-        push_vert(x2, y2, z2, n2.x, n2.y, n2.z, 1.0f, 0.0f);
-        push_vert(x3, y3, z3, n2.x, n2.y, n2.z, 0.0f, 1.0f);
-        push_vert(x4, y4, z4, n2.x, n2.y, n2.z, 1.0f, 1.0f);
+        push_vert(x + 1, z, x2, y2, z2, n2.x, n2.y, n2.z, 1.0f, 0.0f);
+        push_vert(x, z + 1, x3, y3, z3, n2.x, n2.y, n2.z, 0.0f, 1.0f);
+        push_vert(x + 1, z + 1, x4, y4, z4, n2.x, n2.y, n2.z, 1.0f, 1.0f);
     };
 
     // iterate through the grid to generate vertices and normals

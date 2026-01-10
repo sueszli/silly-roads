@@ -59,7 +59,6 @@ struct GameState {
     std::int32_t road_gen_next_segment = 0; // next segment to generate
 
     // road rendering
-    Mesh road_mesh = {};
-    Model road_model = {};
-    bool road_mesh_generated = false;
+    std::vector<Vector3> dense_road_points; // cached dense points for terrain checking
+    bool road_path_generated = false;
 };

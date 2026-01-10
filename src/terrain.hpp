@@ -14,4 +14,4 @@ float get_terrain_height(float x, float z);
 Vector3 get_terrain_normal(float x, float z);
 
 /** generates a raylib mesh consisting of (grid_size-1)x(grid_size-1) tiles, each 1x1 units, using world offset (offset_x, offset_z) */
-Mesh generate_terrain_mesh_data(float offset_x, float offset_z);
+Mesh generate_terrain_mesh_data(float offset_x, float offset_z, const std::vector<Vector3> &road_path);

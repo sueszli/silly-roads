@@ -2,13 +2,15 @@ work in progress
 
 todo:
 
-- fix rendering artifact / z-fighting of road and terrain. currently the road is rendered after the terrain, so it's visible.
-- don't make wheels sink into road.
-- start car on road, not beside it.
+- start with car on the road
+- fix warnings
+
 - huge code refactor, more functional style.
     - graphics module where you have functions for shapes of objects (ie. render_car which calls render_wheel)
     - physics module
-- better pickup truck models
+
+- better pickup truck model
+- air time
 - wiggly and silly looking suspensions and wheels
 - markings in the middle of the road, trees
 - space for boost with fire particles

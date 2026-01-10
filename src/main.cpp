@@ -134,11 +134,11 @@ void update_physics_mut(GameState *state) {
 //
 
 Texture2D load_terrain_texture() {
-    // checkered terrain texture
-    Image checked = GenImageChecked(256, 256, 128, 128, DARKGREEN, GREEN);
-    Texture2D texture = LoadTextureFromImage(checked);
+    // plain white texture, so vertex colors are unfiltered
+    Image white = GenImageColor(2, 2, WHITE);
+    Texture2D texture = LoadTextureFromImage(white);
     assert(texture.id != 0);
-    UnloadImage(checked);
+    UnloadImage(white);
     return texture;
 }
 
@@ -148,25 +148,15 @@ void generate_terrain_mesh_mut(GameState *state) {
     if (state->mesh_generated) {
         UnloadModel(state->terrain_model);
     }
-    state->terrain_mesh = generate_terrain_mesh_data(state->terrain_offset_x, state->terrain_offset_z);
+    // Pass dense_road_points to generate_terrain_mesh_data
+    state->terrain_mesh = generate_terrain_mesh_data(state->terrain_offset_x, state->terrain_offset_z, state->dense_road_points);
     UploadMesh(&state->terrain_mesh, false);
     state->terrain_model = LoadModelFromMesh(state->terrain_mesh);
     state->terrain_model.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = state->texture;
     state->mesh_generated = true;
 }
 
-void generate_road_mesh_mut(GameState *state) {
-    assert(state != nullptr);
-    if (state->road_mesh_generated) {
-        UnloadModel(state->road_model);
-    }
-    std::vector<Vector3> dense_points = generate_road_path(state->road_points);
-    state->road_mesh = generate_road_mesh(dense_points);
-    UploadMesh(&state->road_mesh, false);
-    state->road_model = LoadModelFromMesh(state->road_mesh);
-    state->road_model.materials[0].maps[MATERIAL_MAP_DIFFUSE].color = BROWN;
-    state->road_mesh_generated = true;
-}
+// generate_road_mesh_mut removed as road is now part of terrain texture
 
 //
 // loggng
@@ -230,10 +220,6 @@ void draw_frame(const GameState *state) {
     ClearBackground(SKYBLUE);
     BeginMode3D(state->camera);
     DrawModel(state->terrain_model, {state->terrain_offset_x, 0.0f, state->terrain_offset_z}, 1.0f, WHITE);
-
-    if (state->road_mesh_generated) {
-        DrawModel(state->road_model, {0.0f, 0.0f, 0.0f}, 1.0f, WHITE);
-    }
 
     // draw car with rotation
     rlPushMatrix();
@@ -360,8 +346,21 @@ void update_road_mut(GameState *state) {
             state->road_points.push_back(generate_next_road_point_mut(state));
         }
 
-        // regenerate mesh with all points
-        generate_road_mesh_mut(state);
+        // Prune old points to prevent infinite growth and lag
+        // Keep some points behind for spline continuity and rear visibility
+        const int keep_behind = 32;
+        if (closest_idx > keep_behind + 16) {
+            int prune_count = closest_idx - keep_behind;
+            state->road_points.erase(state->road_points.begin(), state->road_points.begin() + prune_count);
+            std::printf("[ROAD] Pruned %d old points, new size: %zu\n", prune_count, state->road_points.size());
+        }
+
+        // regenerate dense points
+        state->dense_road_points = generate_road_path(state->road_points);
+
+        // Force terrain regeneration to update the road on it
+        state->mesh_generated = false;
+
         std::printf("[ROAD] Generated %d new points, total: %zu\n", to_generate, state->road_points.size());
     }
 }
@@ -387,7 +386,9 @@ void init_road_mut(GameState *state) {
     }
 
     state->road_initialized = true;
-    generate_road_mesh_mut(state);
+    state->dense_road_points = generate_road_path(state->road_points);
+    // Force terrain regeneration
+    state->mesh_generated = false;
     std::printf("[ROAD] Generated initial %zu points\n", state->road_points.size());
 }
 
@@ -406,7 +407,7 @@ std::int32_t main() {
 
     // cleanup
     UnloadModel(state.terrain_model);
-    UnloadModel(state.road_model);
+
     UnloadTexture(state.texture);
     CloseWindow();
 
