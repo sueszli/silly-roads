@@ -5,13 +5,13 @@
 #include "road.hpp"
 #include "terrain.hpp"
 
+#include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <vector>
-#include <algorithm>
 
 //
 // forward declarations
