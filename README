@@ -2,7 +2,7 @@ work in progress
 
 todo:
 
-- fix rendering artifact / z-fighting of road and terrain.
+- fix rendering artifact / z-fighting of road and terrain. currently the road is rendered after the terrain, so it's visible.
 - don't make wheels sink into road.
 - start car on road, not beside it.
 - huge code refactor, more functional style.
