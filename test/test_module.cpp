@@ -7,12 +7,6 @@ TEST(RoadTest, GenerateRoadPath) {
 
     std::vector<Vector3> path = generate_road_path(control_points);
 
-    // Expected samples: (4 - 1) * 40 + 1 = 121
     EXPECT_EQ(path.size(), 121);
-
-    // Check first and last points match control points approximately (spline passes through them?)
-    // Note: Catmull-Rom passes through control points.
-    // However, the implementation handles start/end tangents by duplicating points or special indexing.
-    // Let's just check size for now to verify decoupling.
     EXPECT_FALSE(path.empty());
 }

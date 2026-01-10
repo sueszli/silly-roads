@@ -68,5 +68,5 @@ fmt:
 	find . -type f -not -path '*/build/*' \( -name "*.cpp" -o -name "*.hpp" \) | xargs clang-format -i
 
 .PHONY: up
-up: fmt lint
+up: fmt lint test
 	git add . && git commit -m up && git push
