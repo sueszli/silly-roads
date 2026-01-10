@@ -18,14 +18,14 @@ Vector3 catmull_rom(Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3, float t) {
 
 } // namespace
 
-Mesh generate_road_mesh(const std::vector<Vector3> &center_points) {
+Mesh generate_road_mesh(const std::vector<Vector3> &points) {
     Mesh mesh = {};
-    if (center_points.size() < 2) {
+    if (points.size() < 2) {
         return mesh;
     }
 
     const float road_width = 8.0f;
-    std::size_t total_samples = center_points.size();
+    std::size_t total_samples = points.size();
 
     // 3 vertices per sample (left, center, right)
     mesh.vertexCount = (int)total_samples * 3;
@@ -41,12 +41,12 @@ Mesh generate_road_mesh(const std::vector<Vector3> &center_points) {
                                         // Ideally texture calc should depend on arc length or similar, but keeping logic consistent.
 
     for (int i = 0; i < (int)total_samples; i++) {
-        Vector3 p = center_points[static_cast<std::size_t>(i)];
+        Vector3 p = points[static_cast<std::size_t>(i)];
         Vector3 tangent;
         if (i < (int)total_samples - 1) {
-            tangent = Vector3Subtract(center_points[static_cast<std::size_t>(i + 1)], p);
+            tangent = Vector3Subtract(points[static_cast<std::size_t>(i + 1)], p);
         } else {
-            tangent = Vector3Subtract(p, center_points[static_cast<std::size_t>(i - 1)]);
+            tangent = Vector3Subtract(p, points[static_cast<std::size_t>(i - 1)]);
         }
 
         // horizontal right direction perpendicular to tangent
@@ -127,13 +127,13 @@ Mesh generate_road_mesh(const std::vector<Vector3> &center_points) {
     return mesh;
 }
 
-std::vector<Vector3> generate_road_path(const std::vector<Vector3> &points) {
-    if (points.size() < 2) {
+std::vector<Vector3> generate_road_path(const std::vector<Vector3> &control_points) {
+    if (control_points.size() < 2) {
         return {};
     }
 
     const int samples_per_segment = 40;
-    const int count = (int)points.size();
+    const int count = (int)control_points.size();
     const int total_samples = (count - 1) * samples_per_segment + 1;
 
     std::vector<Vector3> center_points(static_cast<std::size_t>(total_samples));
@@ -153,7 +153,7 @@ std::vector<Vector3> generate_road_path(const std::vector<Vector3> &points) {
         int i2 = segment + 1;
         int i3 = (segment + 2 < count) ? segment + 2 : count - 1;
 
-        center_points[static_cast<std::size_t>(i)] = catmull_rom(points[i0], points[i1], points[i2], points[i3], local_t);
+        center_points[static_cast<std::size_t>(i)] = catmull_rom(control_points[i0], control_points[i1], control_points[i2], control_points[i3], local_t);
     }
 
     return center_points;
