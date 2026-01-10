@@ -19,5 +19,3 @@ Enable efficient querying of road geometry during terrain generation. We need to
 
 ## Prompt
 To execute this task, use the following prompt:
-
-> `Please read 'specs/02_spatial_opt.md' and implement the spatial query helper for efficient road segment retrieval.`
