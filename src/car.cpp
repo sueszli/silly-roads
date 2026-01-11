@@ -137,24 +137,134 @@ void update_physics(float dt) {
 void draw_car() {
     const auto &car = internal_state;
 
+    // Colors for a stylish pickup truck
+    const Color body_main = {180, 40, 45, 255};     // deep red
+    const Color body_accent = {140, 30, 35, 255};   // darker red accent
+    const Color trim_chrome = {200, 200, 210, 255}; // chrome trim
+    const Color window_tint = {30, 40, 50, 180};    // tinted windows
+    const Color headlight = {255, 250, 220, 255};   // warm headlights
+    const Color taillight = {255, 40, 40, 255};     // red taillights
+    const Color wheel_rim = {160, 160, 170, 255};   // alloy rims
+
     rlPushMatrix();
     rlTranslatef(car.pos.x, car.pos.y, car.pos.z);
     rlRotatef(car.heading * RAD2DEG, 0.0f, 1.0f, 0.0f);
     rlRotatef(car.pitch * RAD2DEG, 1.0f, 0.0f, 0.0f);
     rlRotatef(car.roll * RAD2DEG, 0.0f, 0.0f, 1.0f);
 
-    DrawCube({0.0f, 0.5f, 0.0f}, 2.0f, 1.0f, 4.0f, RED);
-    DrawCube({0.0f, 0.5f, 1.0f}, 1.8f, 0.8f, 2.0f, MAROON);
+    // === CHASSIS / UNDERCARRIAGE ===
+    DrawCube({0.0f, 0.15f, 0.0f}, 1.8f, 0.25f, 4.2f, DARKGRAY);
 
+    // === HOOD (front engine section) ===
+    DrawCube({0.0f, 0.55f, 1.6f}, 1.9f, 0.5f, 1.2f, body_main);      // hood top
+    DrawCube({0.0f, 0.35f, 1.6f}, 1.95f, 0.15f, 1.25f, body_accent); // hood lower
+
+    // === CAB (cabin section) ===
+    DrawCube({0.0f, 0.55f, 0.3f}, 1.9f, 0.5f, 1.4f, body_main); // cab lower body
+    DrawCube({0.0f, 1.05f, 0.2f}, 1.7f, 0.5f, 1.2f, body_main); // cab upper body (roof area)
+
+    // Roof
+    DrawCube({0.0f, 1.35f, 0.2f}, 1.6f, 0.1f, 1.1f, body_accent);
+
+    // Windows (tinted glass) - offset outward to prevent z-fighting with cab
+    DrawCube({0.0f, 1.0f, 0.87f}, 1.5f, 0.4f, 0.06f, window_tint);   // windshield
+    DrawCube({0.0f, 1.0f, -0.42f}, 1.5f, 0.35f, 0.06f, window_tint); // rear window
+    DrawCube({-0.90f, 1.0f, 0.2f}, 0.06f, 0.35f, 0.8f, window_tint); // left window
+    DrawCube({0.90f, 1.0f, 0.2f}, 0.06f, 0.35f, 0.8f, window_tint);  // right window
+
+    // A-Pillars (windshield frame) - offset outward
+    DrawCube({-0.82f, 1.0f, 0.65f}, 0.08f, 0.45f, 0.12f, body_accent);
+    DrawCube({0.82f, 1.0f, 0.65f}, 0.08f, 0.45f, 0.12f, body_accent);
+
+    // === TRUCK BED (hollow trunk) ===
+    // Bed floor
+    DrawCube({0.0f, 0.4f, -1.3f}, 1.76f, 0.1f, 1.56f, body_accent);
+
+    // Left bed wall
+    DrawCube({-0.9f, 0.65f, -1.3f}, 0.12f, 0.45f, 1.6f, body_main);
+
+    // Right bed wall
+    DrawCube({0.9f, 0.65f, -1.3f}, 0.12f, 0.45f, 1.6f, body_main);
+
+    // Front bed wall (behind cab)
+    DrawCube({0.0f, 0.65f, -0.48f}, 1.76f, 0.45f, 0.12f, body_main);
+
+    // Tailgate (rear)
+    DrawCube({0.0f, 0.65f, -2.12f}, 1.8f, 0.45f, 0.1f, body_main);
+
+    // Bed rail trim (chrome strips on top of walls) - raised slightly
+    DrawCube({-0.9f, 0.92f, -1.3f}, 0.14f, 0.04f, 1.58f, trim_chrome);
+    DrawCube({0.9f, 0.92f, -1.3f}, 0.14f, 0.04f, 1.58f, trim_chrome);
+    DrawCube({0.0f, 0.92f, -2.12f}, 1.76f, 0.04f, 0.10f, trim_chrome);
+
+    // === WHEEL ARCHES ===
+    // Front wheel arches - offset outward
+    DrawCube({-1.01f, 0.35f, 1.5f}, 0.12f, 0.4f, 0.7f, body_accent);
+    DrawCube({1.01f, 0.35f, 1.5f}, 0.12f, 0.4f, 0.7f, body_accent);
+    // Rear wheel arches
+    DrawCube({-1.01f, 0.35f, -1.5f}, 0.12f, 0.4f, 0.7f, body_accent);
+    DrawCube({1.01f, 0.35f, -1.5f}, 0.12f, 0.4f, 0.7f, body_accent);
+
+    // === FRONT BUMPER ===
+    DrawCube({0.0f, 0.25f, 2.28f}, 2.0f, 0.25f, 0.15f, trim_chrome);
+    DrawCube({0.0f, 0.16f, 2.34f}, 1.8f, 0.1f, 0.08f, DARKGRAY);
+
+    // === GRILLE ===
+    DrawCube({0.0f, 0.5f, 2.24f}, 1.0f, 0.3f, 0.05f, trim_chrome);
+    // Grille slats - offset forward from grille
+    for (int i = 0; i < 5; i++) {
+        float y_off = 0.42f + i * 0.05f;
+        DrawCube({0.0f, y_off, 2.28f}, 0.9f, 0.02f, 0.02f, DARKGRAY);
+    }
+
+    // === HEADLIGHTS === - offset forward
+    DrawCube({-0.7f, 0.5f, 2.26f}, 0.3f, 0.2f, 0.04f, headlight);
+    DrawCube({0.7f, 0.5f, 2.26f}, 0.3f, 0.2f, 0.04f, headlight);
+    // Turn signals
+    DrawCube({-0.95f, 0.5f, 2.20f}, 0.12f, 0.12f, 0.04f, ORANGE);
+    DrawCube({0.95f, 0.5f, 2.20f}, 0.12f, 0.12f, 0.04f, ORANGE);
+
+    // === REAR BUMPER ===
+    DrawCube({0.0f, 0.25f, -2.28f}, 2.0f, 0.2f, 0.12f, trim_chrome);
+
+    // === TAILLIGHTS === - offset backward
+    DrawCube({-0.75f, 0.65f, -2.18f}, 0.25f, 0.2f, 0.04f, taillight);
+    DrawCube({0.75f, 0.65f, -2.18f}, 0.25f, 0.2f, 0.04f, taillight);
+    // Reverse lights
+    DrawCube({-0.45f, 0.65f, -2.18f}, 0.1f, 0.12f, 0.04f, WHITE);
+    DrawCube({0.45f, 0.65f, -2.18f}, 0.1f, 0.12f, 0.04f, WHITE);
+
+    // === SIDE MIRRORS ===
+    // Mirror arms - offset outward
+    DrawCube({-1.08f, 0.95f, 0.7f}, 0.12f, 0.05f, 0.1f, body_accent);
+    DrawCube({1.08f, 0.95f, 0.7f}, 0.12f, 0.05f, 0.1f, body_accent);
+    // Mirror housings
+    DrawCube({-1.20f, 0.95f, 0.7f}, 0.08f, 0.12f, 0.18f, body_accent);
+    DrawCube({1.20f, 0.95f, 0.7f}, 0.08f, 0.12f, 0.18f, body_accent);
+    // Mirror glass - offset outward from housing
+    DrawCube({-1.26f, 0.95f, 0.7f}, 0.02f, 0.1f, 0.15f, {100, 120, 140, 200});
+    DrawCube({1.26f, 0.95f, 0.7f}, 0.02f, 0.1f, 0.15f, {100, 120, 140, 200});
+
+    // === DOOR HANDLES === - offset outward
+    DrawCube({-0.98f, 0.75f, 0.35f}, 0.02f, 0.04f, 0.12f, trim_chrome);
+    DrawCube({0.98f, 0.75f, 0.35f}, 0.02f, 0.04f, 0.12f, trim_chrome);
+
+    // === WHEELS ===
     for (int i = 0; i < 4; i++) {
         rlPushMatrix();
         rlTranslatef(car.wheels[i].local_offset.x, car.wheels[i].local_offset.y, car.wheels[i].local_offset.z);
         if (i < 2) {
             rlRotatef(car.wheels[i].steering_angle * RAD2DEG, 0.0f, 1.0f, 0.0f);
         }
-        DrawCylinderEx({-0.1f, 0.0f, 0.0f}, {0.1f, 0.0f, 0.0f}, 0.3f, 0.3f, 16, DARKGRAY);
+        // Tire (outer)
+        DrawCylinderEx({-0.20f, 0.0f, 0.0f}, {0.20f, 0.0f, 0.0f}, 0.38f, 0.38f, 20, {40, 40, 45, 255});
+        // Wheel rim (inner)
+        DrawCylinderEx({-0.12f, 0.0f, 0.0f}, {0.12f, 0.0f, 0.0f}, 0.25f, 0.25f, 12, wheel_rim);
+        // Hub cap center
+        DrawCylinderEx({-0.14f, 0.0f, 0.0f}, {0.14f, 0.0f, 0.0f}, 0.08f, 0.08f, 8, trim_chrome);
         rlPopMatrix();
     }
+
     rlPopMatrix();
 }
 

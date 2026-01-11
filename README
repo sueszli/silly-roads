@@ -2,19 +2,10 @@ work in progress
 
 todo:
 
-- start with car on the road
-- fix warnings
-
-- refactor
-    - functional style, more concise and to the point
-    - smaller interfaces, make more stuff private
-    - main.ccp just delegates stuff around
-    - graphics module, physics module
-
-- prettier car, air time, wiggly suspensions
-- markings in the middle of the road, trees
 - space for boost with fire particles
-
+- prettier car
+- air time, wiggly suspensions
+- markings in the middle of the road, trees
 
 finally:
 
