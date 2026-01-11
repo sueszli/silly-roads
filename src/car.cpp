@@ -183,7 +183,7 @@ void draw_car() {
     DrawCube({0.0f, 0.5f, 2.24f}, 1.0f, 0.3f, 0.05f, trim_chrome);
     // grille slats
     for (int i = 0; i < 5; i++) {
-        float y_off = 0.42f + i * 0.05f;
+        float y_off = 0.42f + static_cast<float>(i) * 0.05f;
         DrawCube({0.0f, y_off, 2.28f}, 0.9f, 0.02f, 0.02f, DARKGRAY);
     }
     // headlight

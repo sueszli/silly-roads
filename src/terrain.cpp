@@ -135,8 +135,8 @@ Mesh generate_chunk_mesh(float offset_x, float offset_z) {
     for (int z = 0; z < GRID_SIZE; ++z) {
         for (int x = 0; x < GRID_SIZE; ++x) {
             const int i = z * GRID_SIZE + x;
-            const float wx = offset_x + x * TILE_SIZE;
-            const float wz = offset_z + z * TILE_SIZE;
+            const float wx = offset_x + static_cast<float>(x) * TILE_SIZE;
+            const float wz = offset_z + static_cast<float>(z) * TILE_SIZE;
             const float wy = Terrain::get_height(wx, wz);
             const Vector3 n = get_normal(wx, wz);
             const Color col = get_color(x, z, wx, wz);
@@ -198,7 +198,7 @@ void update(const Vector3 &car_pos) {
     for (int z = -2; z <= 2; ++z) {
         for (int x = -2; x <= 2; ++x) {
             if (std::none_of(internal_state.chunks.begin(), internal_state.chunks.end(), [&](const auto &c) { return c.cx == cx + x && c.cz == cz + z; })) {
-                Mesh mesh = generate_chunk_mesh((cx + x) * CHUNK_SIZE, (cz + z) * CHUNK_SIZE);
+                Mesh mesh = generate_chunk_mesh(static_cast<float>(cx + x) * CHUNK_SIZE, static_cast<float>(cz + z) * CHUNK_SIZE);
                 UploadMesh(&mesh, false);
                 Model model = LoadModelFromMesh(mesh);
                 model.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = internal_state.texture;
