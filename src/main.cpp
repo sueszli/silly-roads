@@ -17,24 +17,22 @@ void draw_hud() {
     DrawText(buf, 10, 60, 20, LIGHTGRAY);
 }
 
-std::int32_t main() {
+int32_t main() {
     InitWindow(800, 450, "silly roads");
     SetTargetFPS(240);
 
-    Cam::State camera{};
-
     while (!WindowShouldClose()) {
         float dt = std::min(GetFrameTime(), 0.1f);
-        Cam::update(camera, Car::get_position(), Car::get_heading(), dt);
+        const Camera3D &camera = Cam::update(dt);
 
         BeginDrawing();
         ClearBackground(SKYBLUE);
+        BeginMode3D(camera);
 
-        BeginMode3D(camera.camera);
         Terrain::draw();
         Car::update(dt);
-        EndMode3D();
 
+        EndMode3D();
         draw_hud();
         EndDrawing();
     }
