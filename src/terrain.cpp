@@ -14,7 +14,7 @@ constexpr float NOISE_SCALE = 0.05f;
 constexpr float TERRAIN_HEIGHT_SCALE = 7.0f;
 constexpr float ROAD_NOISE_SCALE = 0.003f;
 constexpr float ROAD_AMPLITUDE = 200.0f;
-constexpr int32_t GRID_SIZE = 128;
+constexpr int32_t GRID_SIZE = 64;
 constexpr float TILE_SIZE = 1.0f;
 constexpr float CHUNK_SIZE = (GRID_SIZE - 1) * TILE_SIZE;
 

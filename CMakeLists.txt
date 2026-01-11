@@ -111,6 +111,10 @@ if(NOT DISABLE_UBSAN)
   add_link_options(-fsanitize=undefined)
 endif()
 
+if(EMSCRIPTEN)
+  add_link_options("SHELL:-s ALLOW_MEMORY_GROWTH=1")
+endif()
+
 #
 # dependencies
 #
