@@ -63,10 +63,6 @@ struct GameState {
     Components::RoadState road;
     Components::CameraState camera;
 
-    //
-    // terrain
-    //
-
     struct TerrainChunk {
         int cx; // chunk grid x coordinate
         int cz; // chunk grid z coordinate
