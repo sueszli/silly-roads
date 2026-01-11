@@ -21,6 +21,9 @@ void cleanup();
 /** returns the calculated terrain elevation (y) at world coordinates (x, z) */
 float get_height(float x, float z);
 
+/** returns the road center x coordinate at a given z position */
+float get_road_center_x(float z);
+
 /** returns the starting position on the road */
 Vector3 get_start_position();
 

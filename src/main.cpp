@@ -1,5 +1,6 @@
 #include "camera.hpp"
 #include "car.hpp"
+#include "landscape.hpp"
 #include "raylib.h"
 #include "terrain.hpp"
 
@@ -25,11 +26,14 @@ int32_t main() {
         float dt = std::min(GetFrameTime(), 0.1f);
         const Camera3D &camera = Cam::update(dt);
 
+        Landscape::update(Car::get_position());
+
         BeginDrawing();
         ClearBackground(SKYBLUE);
         BeginMode3D(camera);
 
         Terrain::draw();
+        Landscape::draw();
         Car::update(dt);
 
         EndMode3D();
@@ -37,6 +41,7 @@ int32_t main() {
         EndDrawing();
     }
 
+    Landscape::cleanup();
     Terrain::cleanup();
     CloseWindow();
     return EXIT_SUCCESS;

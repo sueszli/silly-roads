@@ -225,6 +225,8 @@ void cleanup() {
 
 float get_height(float x, float z) { return sample_perlin_noise(x * NOISE_SCALE, 0.0f, z * NOISE_SCALE) * TERRAIN_HEIGHT_SCALE; }
 
+float get_road_center_x(float z) { return ::get_road_center_x(z); }
+
 Vector3 get_start_position() {
     ensure_initialized();
     return internal_state.start_pos;
