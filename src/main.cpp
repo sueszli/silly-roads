@@ -186,7 +186,7 @@ void draw_scene(const GameState &state) {
     BeginMode3D(state.camera.camera);
 
     // Draw all chunks
-    Terrain::draw(state);
+    Terrain::draw();
 
     // car rendering
     draw_car(state.car);
@@ -230,10 +230,7 @@ std::int32_t main() {
     }
 
     // Cleanup
-    for (const auto &chunk : state.terrain_chunks) {
-        UnloadModel(chunk.model);
-    }
-    UnloadTexture(state.texture);
+    Terrain::cleanup();
     CloseWindow();
 
     return EXIT_SUCCESS;
