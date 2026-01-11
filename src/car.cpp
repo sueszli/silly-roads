@@ -8,11 +8,11 @@
 
 namespace {
 
-constexpr float PHYS_ACCEL = 200.0f;     // acceleration per second
-constexpr float PHYS_BRAKE = 400.0f;     // braking/reverse force
-constexpr float PHYS_MAX_SPEED = 120.0f; // max speed
-constexpr float PHYS_DRAG = 0.98f;       // drag coefficient
-constexpr float PHYS_TURN_RATE = 2.0f;   // turn rate in rad/s
+constexpr float PHYS_ACCEL = 50.0f;     // acceleration per second
+constexpr float PHYS_BRAKE = 160.0f;    // braking/reverse force
+constexpr float PHYS_MAX_SPEED = 40.0f; // max speed
+constexpr float PHYS_DRAG = 0.98f;      // drag coefficient
+constexpr float PHYS_TURN_RATE = 2.0f;  // turn rate in rad/s
 
 struct CarControls {
     float throttle; // -1.0 (brake/reverse) to 1.0 (accel)
@@ -143,7 +143,6 @@ void draw_car() {
     const Color window_tint = {30, 40, 50, 180};    // tinted windows
     const Color headlight = {255, 250, 220, 255};   // warm headlights
     const Color taillight = {255, 40, 40, 255};     // red taillights
-    const Color wheel_rim = {160, 160, 170, 255};   // alloy rims
 
     rlPushMatrix();
     rlTranslatef(car.pos.x, car.pos.y, car.pos.z);
@@ -224,12 +223,8 @@ void draw_car() {
         if (i < 2) {
             rlRotatef(car.wheels[i].steering_angle * RAD2DEG, 0.0f, 1.0f, 0.0f);
         }
-        // tire (outer)
-        DrawCylinderEx({-0.20f, 0.0f, 0.0f}, {0.20f, 0.0f, 0.0f}, 0.38f, 0.38f, 20, {40, 40, 45, 255});
-        // wheel rim (inner)
-        DrawCylinderEx({-0.12f, 0.0f, 0.0f}, {0.12f, 0.0f, 0.0f}, 0.25f, 0.25f, 12, wheel_rim);
-        // hub cap center
-        DrawCylinderEx({-0.14f, 0.0f, 0.0f}, {0.14f, 0.0f, 0.0f}, 0.08f, 0.08f, 8, trim_chrome);
+        // simple tire
+        DrawCylinderEx({-0.18f, 0.0f, 0.0f}, {0.18f, 0.0f, 0.0f}, 0.36f, 0.36f, 12, DARKGRAY);
         rlPopMatrix();
     }
 

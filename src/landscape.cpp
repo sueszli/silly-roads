@@ -9,20 +9,22 @@
 
 namespace {
 
-constexpr float TREE_SPAWN_RADIUS = 150.0f;
-constexpr float TREE_DESPAWN_RADIUS = 200.0f;
-constexpr float MIN_TREE_SPACING = 8.0f;
-constexpr int32_t TREES_PER_UPDATE = 5;
+constexpr float SPAWN_RADIUS = 200.0f;
+constexpr float DESPAWN_RADIUS = 250.0f;
+constexpr float MIN_SPACING = 8.0f;
+constexpr int32_t ELEMENTS_PER_UPDATE = 5;
 
-struct Tree {
+enum class ElementType { TREE, BUSH };
+
+struct Element {
     Vector3 position;
-    float height;
-    float trunk_radius;
-    float crown_radius;
+    ElementType type;
+    float size;
+    Color color;
 };
 
 struct LandscapeState {
-    std::vector<Tree> trees;
+    std::vector<Element> elements;
     std::mt19937 rng{42};
     bool initialized = false;
 } internal_state;
@@ -39,18 +41,45 @@ bool is_on_road(float x, float z) {
     return std::abs(x - road_center) < 8.0f;
 }
 
-void draw_tree(const Tree &tree) {
-    // trunk
+void draw_tree(const Element &e) {
     constexpr Color TRUNK_COLOR = {101, 67, 33, 255};
-    Vector3 trunk_top = tree.position;
-    trunk_top.y += tree.height * 0.4f;
-    DrawCylinderEx(tree.position, trunk_top, tree.trunk_radius, tree.trunk_radius, 6, TRUNK_COLOR);
-    // crown
-    Vector3 crown_base = tree.position;
-    crown_base.y += tree.height * 0.35f;
-    Vector3 crown_top = crown_base;
-    crown_top.y += tree.height * 0.65f;
-    DrawCylinderEx(crown_base, crown_top, tree.crown_radius, 0.0f, 8, DARKGREEN);
+    float trunk_height = e.size * 0.4f;
+    float crown_height = e.size * 0.6f;
+
+    Vector3 trunk_top = e.position;
+    trunk_top.y += trunk_height;
+    DrawCylinderEx(e.position, trunk_top, e.size * 0.08f, e.size * 0.06f, 6, TRUNK_COLOR);
+
+    // layered crown for fuller look
+    for (int layer = 0; layer < 3; ++layer) {
+        float layer_offset = static_cast<float>(layer) * crown_height * 0.25f;
+        float layer_radius = e.size * (0.5f - static_cast<float>(layer) * 0.12f);
+        Vector3 base = e.position;
+        base.y += trunk_height * 0.7f + layer_offset;
+        Vector3 top = base;
+        top.y += crown_height * 0.5f;
+        Color layer_color = (layer == 1) ? GREEN : e.color;
+        DrawCylinderEx(base, top, layer_radius, 0.0f, 8, layer_color);
+    }
+}
+
+void draw_bush(const Element &e) {
+    // round bush made of overlapping spheres
+    DrawSphere(e.position, e.size * 0.5f, e.color);
+    Vector3 top = e.position;
+    top.y += e.size * 0.3f;
+    DrawSphere(top, e.size * 0.4f, GREEN);
+}
+
+void draw_element(const Element &e) {
+    switch (e.type) {
+    case ElementType::TREE:
+        draw_tree(e);
+        break;
+    case ElementType::BUSH:
+        draw_bush(e);
+        break;
+    }
 }
 
 } // namespace
@@ -60,37 +89,35 @@ namespace Landscape {
 void update(const Vector3 &car_pos) {
     ensure_initialized();
 
-    // remove distant trees
-    std::erase_if(internal_state.trees, [&](const Tree &t) {
-        float dx = t.position.x - car_pos.x;
-        float dz = t.position.z - car_pos.z;
-        return std::sqrt(dx * dx + dz * dz) > TREE_DESPAWN_RADIUS;
+    std::erase_if(internal_state.elements, [&](const Element &e) {
+        float dx = e.position.x - car_pos.x;
+        float dz = e.position.z - car_pos.z;
+        return std::sqrt(dx * dx + dz * dz) > DESPAWN_RADIUS;
     });
 
-    // spawn new trees around car
     std::uniform_real_distribution<float> angle_dist(0.0f, 2.0f * 3.14159265f);
-    std::uniform_real_distribution<float> radius_dist(20.0f, TREE_SPAWN_RADIUS);
-    std::uniform_real_distribution<float> height_dist(4.0f, 8.0f);
-    std::uniform_real_distribution<float> trunk_dist(0.3f, 0.5f);
-    std::uniform_real_distribution<float> crown_dist(2.0f, 3.5f);
+    std::uniform_real_distribution<float> radius_dist(15.0f, SPAWN_RADIUS);
+    std::uniform_real_distribution<float> type_dist(0.0f, 1.0f);
+    std::uniform_real_distribution<float> size_var(0.8f, 1.2f);
 
-    for (int i = 0; i < TREES_PER_UPDATE; ++i) {
+    const Color tree_colors[] = {DARKGREEN, {0, 100, 0, 255}, {34, 139, 34, 255}};
+    const Color bush_colors[] = {GREEN, DARKGREEN, {107, 142, 35, 255}};
+
+    for (int i = 0; i < ELEMENTS_PER_UPDATE; ++i) {
         float angle = angle_dist(internal_state.rng);
         float radius = radius_dist(internal_state.rng);
-
         float x = car_pos.x + std::cos(angle) * radius;
         float z = car_pos.z + std::sin(angle) * radius;
 
-        // skip if on road
         if (is_on_road(x, z)) {
             continue;
         }
 
-        // check spacing with existing trees
-        bool too_close = std::any_of(internal_state.trees.begin(), internal_state.trees.end(), [x, z](const Tree &t) {
-            float dx = t.position.x - x;
-            float dz = t.position.z - z;
-            return std::sqrt(dx * dx + dz * dz) < MIN_TREE_SPACING;
+        float min_dist = MIN_SPACING;
+        bool too_close = std::any_of(internal_state.elements.begin(), internal_state.elements.end(), [x, z, min_dist](const Element &e) {
+            float dx = e.position.x - x;
+            float dz = e.position.z - z;
+            return std::sqrt(dx * dx + dz * dz) < min_dist;
         });
 
         if (too_close) {
@@ -98,18 +125,32 @@ void update(const Vector3 &car_pos) {
         }
 
         float y = Terrain::get_height(x, z);
-        Tree tree{.position = {x, y, z}, .height = height_dist(internal_state.rng), .trunk_radius = trunk_dist(internal_state.rng), .crown_radius = crown_dist(internal_state.rng)};
-        internal_state.trees.push_back(tree);
+        float type_roll = type_dist(internal_state.rng);
+
+        Element elem;
+        elem.position = {x, y, z};
+
+        if (type_roll < 0.4f) {
+            elem.type = ElementType::TREE;
+            elem.size = (5.0f + type_dist(internal_state.rng) * 4.0f) * size_var(internal_state.rng);
+            elem.color = tree_colors[internal_state.rng() % 3];
+        } else {
+            elem.type = ElementType::BUSH;
+            elem.size = (1.0f + type_dist(internal_state.rng) * 1.5f) * size_var(internal_state.rng);
+            elem.color = bush_colors[internal_state.rng() % 3];
+        }
+
+        internal_state.elements.push_back(elem);
     }
 }
 
 void draw() {
     ensure_initialized();
-    for (const auto &tree : internal_state.trees) {
-        draw_tree(tree);
+    for (const auto &e : internal_state.elements) {
+        draw_element(e);
     }
 }
 
-void cleanup() { internal_state.trees.clear(); }
+void cleanup() { internal_state.elements.clear(); }
 
 } // namespace Landscape

@@ -2,12 +2,12 @@ work in progress
 
 prettier:
 
-- trees, flowers, bushes
-- sun and clouds
+- trees, flowers, bushes -> landscape.hpp/landscape.cpp
+- sun and clouds -> sky.hpp/sky.cpp
 
 fast mode:
 
-- air time, wiggly suspensions
+- air time, wiggly suspensions -> car.hpp/car.cpp
 - space for boost with fire particles from exhaust to go fast
 
 finally:
