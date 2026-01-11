@@ -115,8 +115,9 @@ Mesh generate_chunk_mesh(float offset_x, float offset_z) {
     const auto get_color = [&](int x, int z, float wx, float wz) {
         const float dist = std::abs(wx - get_road_center_x(wz));
         Color col = ((x + z) % 2 == 0) ? DARKGREEN : GREEN; // green area
+        constexpr Color ROAD_COLOR = {30, 30, 30, 255};     // dark asphalt
         if (dist < 6.0f) {
-            col = (dist < 4.0f) ? BROWN : ColorLerp(BROWN, col, (dist - 4.0f) / 2.0f); // road
+            col = (dist < 4.0f) ? ROAD_COLOR : ColorLerp(ROAD_COLOR, col, (dist - 4.0f) / 2.0f);
         }
         return col;
     };

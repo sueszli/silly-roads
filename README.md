@@ -2,11 +2,10 @@ work in progress
 
 todo:
 
-- space for boost with fire particles
-- prettier car
 - air time, wiggly suspensions
+- space for boost with fire particles
 - markings in the middle of the road, trees
 
 finally:
 
-- get wasm to work, then deploy to github pages
+- build wasm, deploy to github pages
