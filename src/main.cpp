@@ -186,14 +186,7 @@ void draw_scene(const GameState &state) {
     BeginMode3D(state.camera.camera);
 
     // Draw all chunks
-    for (const auto &chunk : state.terrain_chunks) {
-        float chunk_world_size = (Terrain::GRID_SIZE - 1) * Terrain::TILE_SIZE;
-        float ox = (float)chunk.cx * chunk_world_size;
-        float oz = (float)chunk.cz * chunk_world_size;
-        Vector3 pos = {ox, 0.0f, oz};
-
-        DrawModel(chunk.model, pos, 1.0f, WHITE);
-    }
+    Terrain::draw(state);
 
     // car rendering
     draw_car(state.car);
@@ -218,24 +211,7 @@ std::int32_t main() {
     SetTargetFPS(240);
 
     GameState state{};
-    state.texture = Terrain::load_texture();
-    // Initial car placement on road
-    float start_z = 0.0f;
-    float start_x = Terrain::get_road_offset(start_z);
-
-    state.car.pos = {start_x, 0.0f, start_z};
-    state.car.pos.y = Terrain::get_height(start_x, start_z) + 2.0f;
-
-    // Face the road direction (approximate derivative)
-    float look_ahead_z = start_z + 1.0f;
-    float look_ahead_x = Terrain::get_road_offset(look_ahead_z);
-
-    float dx = look_ahead_x - start_x;
-    float dz = look_ahead_z - start_z;
-    state.car.heading = std::atan2(dx, dz);
-
-    // Force initial terrain update for chunks
-    Terrain::update(&state);
+    Terrain::init(state);
 
     while (!WindowShouldClose()) {
         float dt = GetFrameTime();
@@ -244,7 +220,7 @@ std::int32_t main() {
         // Update
         CarControls controls = read_inputs();
 
-        Terrain::update(&state);
+        Terrain::update(state);
 
         update_physics(state, controls, dt);
         update_camera(state, dt);
