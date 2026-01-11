@@ -17,8 +17,8 @@ constexpr float PHYS_MAX_SPEED = 120.0f; // max speed
 constexpr float PHYS_DRAG = 0.98f;       // drag coefficient
 constexpr float PHYS_TURN_RATE = 2.0f;   // turn rate in rad/s
 
-Components::CarControls read_inputs() {
-    Components::CarControls inputs = {};
+CarControls read_inputs() {
+    CarControls inputs = {};
 
     // A/D steering
     if (IsKeyDown(KEY_D)) {
@@ -37,8 +37,8 @@ Components::CarControls read_inputs() {
     return inputs;
 }
 
-void update_physics(GameState &state, const Components::CarControls &inputs, float dt) {
-    Components::Car &car = state.car;
+void update_physics(GameState &state, const CarControls &inputs, float dt) {
+    Car &car = state.car;
 
     // Steering
     if (std::abs(car.speed) > 0.5f) {
@@ -127,8 +127,8 @@ void update_physics(GameState &state, const Components::CarControls &inputs, flo
 }
 
 void update_camera(GameState &state, float dt) {
-    Components::CameraState &cam = state.camera;
-    const Components::Car &car = state.car;
+    CameraState &cam = state.camera;
+    const Car &car = state.car;
 
     // update camera to follow car (chase cam)
     Vector3 target_cam_pos;
@@ -147,7 +147,7 @@ void update_camera(GameState &state, float dt) {
     cam.camera.target = car.pos;
 }
 
-void draw_car(const Components::Car &car) {
+void draw_car(const Car &car) {
     rlPushMatrix();
     rlTranslatef(car.pos.x, car.pos.y, car.pos.z);
 
@@ -242,7 +242,7 @@ std::int32_t main() {
         dt = std::min(dt, 0.1f);
 
         // Update
-        Components::CarControls controls = read_inputs();
+        CarControls controls = read_inputs();
 
         Terrain::update(&state);
 

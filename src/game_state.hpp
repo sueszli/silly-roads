@@ -3,8 +3,6 @@
 #include <cstdint>
 #include <vector>
 
-namespace Components {
-
 struct CarControls {
     float throttle; // -1.0 (brake/reverse) to 1.0 (accel)
     float steer;    // -1.0 (left) to 1.0 (right)
@@ -42,17 +40,15 @@ struct CameraState {
     Vector3 target_pos = {0.0f, 0.0f, 0.0f};
 };
 
-} // namespace Components
+struct TerrainChunk {
+    int cx; // chunk grid x coordinate
+    int cz; // chunk grid z coordinate
+    Model model;
+};
 
 struct GameState {
-    Components::Car car;
-    Components::CameraState camera;
-
-    struct TerrainChunk {
-        int cx; // chunk grid x coordinate
-        int cz; // chunk grid z coordinate
-        Model model;
-    };
+    Car car;
+    CameraState camera;
 
     std::vector<TerrainChunk> terrain_chunks;
     Texture2D texture = {};

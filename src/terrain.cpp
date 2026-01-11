@@ -218,7 +218,7 @@ void update(GameState *state) {
 
     // 1. Identify valid chunks
     // Keep existing chunks that are in range, unload others
-    std::erase_if(state->terrain_chunks, [&](const GameState::TerrainChunk &chunk) {
+    std::erase_if(state->terrain_chunks, [&](const TerrainChunk &chunk) {
         bool in_range = std::abs(chunk.cx - center_cx) <= render_radius && std::abs(chunk.cz - center_cz) <= render_radius;
         if (!in_range) {
             UnloadModel(chunk.model);
@@ -232,7 +232,7 @@ void update(GameState *state) {
             int target_cx = center_cx + x;
             int target_cz = center_cz + z;
 
-            bool exists = std::any_of(state->terrain_chunks.begin(), state->terrain_chunks.end(), [target_cx, target_cz](const GameState::TerrainChunk &chunk) { return chunk.cx == target_cx && chunk.cz == target_cz; });
+            bool exists = std::any_of(state->terrain_chunks.begin(), state->terrain_chunks.end(), [target_cx, target_cz](const TerrainChunk &chunk) { return chunk.cx == target_cx && chunk.cz == target_cz; });
 
             if (!exists) {
                 // Generate chunk
