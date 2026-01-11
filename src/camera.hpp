@@ -6,7 +6,7 @@
 
 #include <cmath>
 
-namespace CameraSystem {
+namespace Cam {
 
 struct State {
     Camera3D camera = {
@@ -34,4 +34,4 @@ inline void update(State &cam, const Vector3 &car_pos, float car_heading, float 
     cam.camera.target = car_pos;
 }
 
-} // namespace CameraSystem
+} // namespace Cam
