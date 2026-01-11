@@ -19,10 +19,9 @@ constexpr int32_t GRID_SIZE = 128;
 constexpr float TILE_SIZE = 1.0f;
 constexpr float CHUNK_SIZE = (GRID_SIZE - 1) * TILE_SIZE;
 
-// Internal State
 struct TerrainChunk {
-    int cx; // chunk grid x coordinate
-    int cz; // chunk grid z coordinate
+    int cx;
+    int cz;
     Model model;
 };
 
@@ -32,9 +31,7 @@ struct TerrainState {
     float chunk_size = 0.0f;
 } internal_state;
 
-// 3D Perlin Noise
 float sample_perlin_noise(float x, float y, float z) {
-    // Helper lambdas
     const auto get_permutation = []() {
         std::array<int32_t, 512> p;
         std::iota(p.begin(), p.begin() + 256, 0);
@@ -64,7 +61,7 @@ float sample_perlin_noise(float x, float y, float z) {
 
     const float u = fade(x), v = fade(y), w = fade(z);
 
-    // Cast to size_t for array indexing
+    // cast to size_t for array indexing
     const size_t idx_X = static_cast<size_t>(X);
     const size_t idx_Y = static_cast<size_t>(Y);
     const size_t idx_Z = static_cast<size_t>(Z);
@@ -81,7 +78,6 @@ float sample_perlin_noise(float x, float y, float z) {
 
 float get_road_center_x(float z) { return sample_perlin_noise(0.0f, 42.0f, z * ROAD_NOISE_SCALE) * ROAD_AMPLITUDE; }
 
-// --- Mesh Generation Helpers ---
 Vector3 calculate_normal(float x, float z) {
     const auto h = [](float x, float z) { return sample_perlin_noise(x * NOISE_SCALE, 0.0f, z * NOISE_SCALE) * TERRAIN_HEIGHT_SCALE; };
     const float step = 0.1f;
