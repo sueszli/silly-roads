@@ -99,7 +99,7 @@ void update_physics(GameState &state, const Components::CarControls &inputs, flo
         // Using global get_terrain_height from terrain.hpp
         h[i] = Terrain::get_height(wx, wz);
 
-        car.wheel_heights[i] = h[i];
+        // car.wheel_heights[i] = h[i]; // Removed caching
         avg_h += h[i];
     }
     avg_h *= 0.25f;
@@ -202,7 +202,7 @@ void draw_scene(const GameState &state) {
 
     // game stats
     char pos_text[64];
-    std::snprintf(pos_text, sizeof(pos_text), "X: %.2f Y: %.2f Z: %.2f | Chunks: %zu", state.car.pos.x, state.car.pos.y, state.car.pos.z, state.terrain_chunks.size());
+    std::snprintf(pos_text, sizeof(pos_text), "X: %.2f Y: %.2f Z: %.2f", state.car.pos.x, state.car.pos.y, state.car.pos.z);
 
     // draw speed on screen
     char speed_text[64];
@@ -219,20 +219,20 @@ std::int32_t main() {
 
     GameState state{};
     state.texture = Terrain::load_texture();
-    Terrain::init_road(state.road);
-
     // Initial car placement on road
-    if (!state.road.points.empty()) {
-        Vector3 start = state.road.points[0];
-        Vector3 next = state.road.points[1];
-        state.car.pos = start;
-        state.car.pos.y = Terrain::get_height(start.x, start.z) + 2.0f; // Initial drop height
+    float start_z = 0.0f;
+    float start_x = Terrain::get_road_offset(start_z);
 
-        // Face the road direction
-        float dx = next.x - start.x;
-        float dz = next.z - start.z;
-        state.car.heading = std::atan2(dx, dz);
-    }
+    state.car.pos = {start_x, 0.0f, start_z};
+    state.car.pos.y = Terrain::get_height(start_x, start_z) + 2.0f;
+
+    // Face the road direction (approximate derivative)
+    float look_ahead_z = start_z + 1.0f;
+    float look_ahead_x = Terrain::get_road_offset(look_ahead_z);
+
+    float dx = look_ahead_x - start_x;
+    float dz = look_ahead_z - start_z;
+    state.car.heading = std::atan2(dx, dz);
 
     // Force initial terrain update for chunks
     Terrain::update(&state);
@@ -244,7 +244,6 @@ std::int32_t main() {
         // Update
         Components::CarControls controls = read_inputs();
 
-        Terrain::update_road(state.road, state.car.pos);
         Terrain::update(&state);
 
         update_physics(state, controls, dt);

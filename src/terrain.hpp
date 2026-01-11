@@ -17,15 +17,11 @@ constexpr float TILE_SIZE = 1.0f;
 /** returns the calculated terrain elevation (y) at world coordinates (x, z) */
 float get_height(float x, float z);
 
-/** updates terrain chunks based on car position */
 void update(GameState *state);
 
 Texture2D load_texture();
 
-/** initializes the road state */
-void init_road(Components::RoadState &road);
-
-/** updates the road state based on car position */
-void update_road(Components::RoadState &road, const Vector3 &car_pos);
+/** returns the calculated road x-offset at world z coordinate */
+float get_road_offset(float z);
 
 } // namespace Terrain

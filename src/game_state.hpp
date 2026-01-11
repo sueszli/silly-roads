@@ -21,28 +21,14 @@ struct Car {
     Vector3 vel = {0.0f, 0.0f, 0.0f};
     float heading = 0.0f;
     float speed = 0.0f;
-    float pitch = 0.0f;           // rotation around X-axis (front/back tilt)
-    float roll = 0.0f;            // rotation around Z-axis (left/right tilt)
-    float wheel_heights[4] = {0}; // FL, FR, RL, RR terrain heights
+    float pitch = 0.0f; // rotation around X-axis (front/back tilt)
+    float roll = 0.0f;  // rotation around Z-axis (left/right tilt)
     WheelState wheels[4] = {
         {{-1.0f, -0.3f, 1.5f}, 0.0f, 0.0f},  // front-left
         {{1.0f, -0.3f, 1.5f}, 0.0f, 0.0f},   // front-right
         {{-1.0f, -0.3f, -1.5f}, 0.0f, 0.0f}, // rear-left
         {{1.0f, -0.3f, -1.5f}, 0.0f, 0.0f},  // rear-right
     };
-};
-
-struct RoadState {
-    std::vector<Vector3> points;       // all road control points (grows dynamically)
-    std::vector<Vector3> dense_points; // cached dense points for terrain checking
-
-    // road generation state (for continuous generation)
-    float gen_x = 0.0f;                // last generated x position
-    float gen_z = 0.0f;                // last generated z position
-    float gen_angle = 0.0f;            // last generated angle
-    std::int32_t gen_next_segment = 0; // next segment to generate
-
-    bool initialized = false;
 };
 
 struct CameraState {
@@ -60,7 +46,6 @@ struct CameraState {
 
 struct GameState {
     Components::Car car;
-    Components::RoadState road;
     Components::CameraState camera;
 
     struct TerrainChunk {
