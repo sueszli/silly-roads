@@ -6,7 +6,9 @@
 
 #include <cmath>
 
-struct CameraState {
+namespace CameraSystem {
+
+struct State {
     Camera3D camera = {
         .position = {0.0f, 10.0f, 10.0f},
         .target = {0.0f, 0.0f, 0.0f},
@@ -16,7 +18,7 @@ struct CameraState {
     };
 };
 
-inline void update_camera(CameraState &cam, const Vector3 &car_pos, float car_heading, float dt) {
+inline void update_camera(State &cam, const Vector3 &car_pos, float car_heading, float dt) {
     Vector3 target_cam_pos = {
         car_pos.x - std::sin(car_heading) * 15.0f,
         car_pos.y + 8.0f,
@@ -31,3 +33,5 @@ inline void update_camera(CameraState &cam, const Vector3 &car_pos, float car_he
 
     cam.camera.target = car_pos;
 }
+
+} // namespace CameraSystem

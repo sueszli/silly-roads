@@ -5,12 +5,6 @@
 
 namespace Terrain {
 
-/** returns the calculated terrain elevation (y) at world coordinates (x, z) */
-float get_height(float x, float z);
-
-/** initializes the terrain system, loads textures. Returns the road start position and heading. */
-void init(Vector3 &out_pos, float &out_heading);
-
 /** updates the terrain system (chunk generation/unloading) based on car position */
 void update(const Vector3 &car_pos);
 
@@ -19,5 +13,18 @@ void draw();
 
 /** cleans up terrain resources */
 void cleanup();
+
+//
+// getters
+//
+
+/** returns the calculated terrain elevation (y) at world coordinates (x, z) */
+float get_height(float x, float z);
+
+/** returns the starting position on the road */
+Vector3 get_start_position();
+
+/** returns the starting heading aligned with the road */
+float get_start_heading();
 
 } // namespace Terrain

@@ -4,11 +4,12 @@
 
 namespace Car {
 
-/** initializes the car at the given position and heading */
-void init(const Vector3 &pos, float heading);
-
 /** reads input, updates physics, and draws the car */
 void update(float dt);
+
+//
+// getters
+//
 
 /** returns the current car position */
 Vector3 get_position();

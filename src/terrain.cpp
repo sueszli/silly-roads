@@ -28,7 +28,33 @@ struct TerrainState {
     std::vector<TerrainChunk> chunks;
     Texture2D texture = {};
     float chunk_size = 0.0f;
+    Vector3 start_pos = {};
+    float start_heading = 0.0f;
+    bool initialized = false;
 } internal_state;
+
+float get_road_center_x(float z); // forward declaration
+
+void ensure_initialized() {
+    if (internal_state.initialized) {
+        return;
+    }
+    internal_state.initialized = true;
+
+    Image img = GenImageColor(2, 2, WHITE);
+    internal_state.texture = LoadTextureFromImage(img);
+    UnloadImage(img);
+    internal_state.chunk_size = CHUNK_SIZE;
+
+    // compute road start position
+    float start_z = 0.0f;
+    float start_x = get_road_center_x(start_z) + 1.5f;
+    internal_state.start_pos = {start_x, Terrain::get_height(start_x, start_z) + 2.0f, start_z};
+
+    // align with road
+    float look_ahead_x = get_road_center_x(start_z + 1.0f) + 1.5f;
+    internal_state.start_heading = std::atan2(look_ahead_x - start_x, 1.0f);
+}
 
 float sample_perlin_noise(float x, float y, float z) {
     const auto get_permutation = []() {
@@ -156,25 +182,8 @@ Mesh generate_chunk_mesh(float offset_x, float offset_z) {
 
 namespace Terrain {
 
-float get_height(float x, float z) { return sample_perlin_noise(x * NOISE_SCALE, 0.0f, z * NOISE_SCALE) * TERRAIN_HEIGHT_SCALE; }
-
-void init(Vector3 &out_pos, float &out_heading) {
-    Image img = GenImageColor(2, 2, WHITE);
-    internal_state.texture = LoadTextureFromImage(img);
-    UnloadImage(img);
-    internal_state.chunk_size = CHUNK_SIZE;
-
-    // compute road start position
-    float start_z = 0.0f;
-    float start_x = get_road_center_x(start_z) + 1.5f;
-    out_pos = {start_x, get_height(start_x, start_z) + 2.0f, start_z};
-
-    // align with road
-    float look_ahead_x = get_road_center_x(start_z + 1.0f) + 1.5f;
-    out_heading = std::atan2(look_ahead_x - start_x, 1.0f);
-}
-
 void update(const Vector3 &car_pos) {
+    ensure_initialized();
     const int cx = (int)std::floor(car_pos.x / CHUNK_SIZE);
     const int cz = (int)std::floor(car_pos.z / CHUNK_SIZE);
 
@@ -201,6 +210,7 @@ void update(const Vector3 &car_pos) {
 }
 
 void draw() {
+    ensure_initialized();
     for (const auto &chunk : internal_state.chunks) {
         DrawModel(chunk.model, {(float)chunk.cx * CHUNK_SIZE, 0.0f, (float)chunk.cz * CHUNK_SIZE}, 1.0f, WHITE);
     }
@@ -212,6 +222,18 @@ void cleanup() {
     }
     internal_state.chunks.clear();
     UnloadTexture(internal_state.texture);
+}
+
+float get_height(float x, float z) { return sample_perlin_noise(x * NOISE_SCALE, 0.0f, z * NOISE_SCALE) * TERRAIN_HEIGHT_SCALE; }
+
+Vector3 get_start_position() {
+    ensure_initialized();
+    return internal_state.start_pos;
+}
+
+float get_start_heading() {
+    ensure_initialized();
+    return internal_state.start_heading;
 }
 
 } // namespace Terrain

@@ -25,7 +25,7 @@ struct WheelState {
 };
 
 struct CarState {
-    Vector3 pos = {60.0f, 20.0f, 60.0f};
+    Vector3 pos = {};
     Vector3 vel = {0.0f, 0.0f, 0.0f};
     float heading = 0.0f;
     float speed = 0.0f;
@@ -38,7 +38,17 @@ struct CarState {
         {{1.0f, -0.3f, -1.5f}, 0.0f},  // BL
     };
     CarControls controls = {};
+    bool initialized = false;
 } internal_state;
+
+void ensure_initialized() {
+    if (internal_state.initialized) {
+        return;
+    }
+    internal_state.initialized = true;
+    internal_state.pos = Terrain::get_start_position();
+    internal_state.heading = Terrain::get_start_heading();
+}
 
 void read_input() {
     internal_state.controls = {};
@@ -151,26 +161,27 @@ void draw_car() {
 
 namespace Car {
 
-void init(const Vector3 &pos, float heading) {
-    internal_state.pos = pos;
-    internal_state.heading = heading;
-    internal_state.vel = {0.0f, 0.0f, 0.0f};
-    internal_state.speed = 0.0f;
-    internal_state.pitch = 0.0f;
-    internal_state.roll = 0.0f;
-}
-
 void update(float dt) {
+    ensure_initialized();
     read_input();
     Terrain::update(internal_state.pos);
     update_physics(dt);
     draw_car();
 }
 
-Vector3 get_position() { return internal_state.pos; }
+Vector3 get_position() {
+    ensure_initialized();
+    return internal_state.pos;
+}
 
-float get_heading() { return internal_state.heading; }
+float get_heading() {
+    ensure_initialized();
+    return internal_state.heading;
+}
 
-float get_speed() { return internal_state.speed; }
+float get_speed() {
+    ensure_initialized();
+    return internal_state.speed;
+}
 
 } // namespace Car

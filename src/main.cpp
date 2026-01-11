@@ -21,15 +21,11 @@ std::int32_t main() {
     InitWindow(800, 450, "silly roads");
     SetTargetFPS(240);
 
-    Vector3 start_pos;
-    float start_heading;
-    Terrain::init(start_pos, start_heading);
-    Car::init(start_pos, start_heading);
-    CameraState camera{};
+    CameraSystem::State camera{};
 
     while (!WindowShouldClose()) {
         float dt = std::min(GetFrameTime(), 0.1f);
-        update_camera(camera, Car::get_position(), Car::get_heading(), dt);
+        CameraSystem::update_camera(camera, Car::get_position(), Car::get_heading(), dt);
 
         BeginDrawing();
         ClearBackground(SKYBLUE);
