@@ -4,34 +4,31 @@ Workflow: Write specification. Chunk into small tasks. Implement. Write tests. R
 
 # (1) Safety
 
-- No Undefined Behavior. Treat all compiler warnings as errors and resolve immediately.
+- Harden compiler: Treat all compiler warnings as errors and resolve immediately. No Undefined Behavior.
 - Assert Aggressively: Assert preconditions, postconditions, invariants, every return value.
 - Bounded Execution: Set fixed upper limits on all loops.
 - Controlled Memory: Strongly prefer static allocation over dynamic allocation. If dynamic allocation is necessary prefer arenas or memory pools.
 - Simple flow: Avoid complex control flow (e.g., goto, nested if-else).
-- Explicit Mutation: Avoid manipulating function arguments or causing side effects. If copying has an extremely high memory cost, mutation is allowed but the function must be named with a suffix (`_mut`) and mutation must be obvious in the naming (e.g., `out_result`).
+- Explicit Mutation: Avoid mutating function arguments or causing side effects. If mutation is required, use the suffix `_mut`.
 - Testing: Achieve 100% coverage. Cover edge cases, boundary conditions and failure modes.
 
 # (2) Performance
 
 - Follow Data-Oriented Design (DoD) principles
-      - Struct of Arrays (SoA): Prefer SoA over Array of Structs (AoS) for heavy computation to maximize SIMD usage.
-- Design for Hardware: Organize data to match how the hardware reads it (cache lines).
-- Batch Processing: Write functions that transform arrays of data rather than single elements (data transformation > object interaction).
-- Existence-based Processing: Filter data *before* processing so loops run on contiguous, valid data (avoid `if (obj->active)` inside hot loops).
 
 # (3) Experience
 
-- Obvious Code > Clever Code
+- Simplicity: always choose the most simple solution.
+- Brevity: prefer concise code.
+- Clarity: comments explain *why*, not *what*. Use lowercase single lines.
 - Maximize Locality: Keep related code together. Define things near usage. Minimize variable scope.
 - Centralize Control Flow: Branching logic belongs in parents. leaf functions should be pure logic.
 - Guard Clauses: Handle checks first, return early, minimize nesting.
 - Functions: Do one coherent thing (ideally <70 lines). Prefer lambdas/inline logic over tiny single-use functions.
 - Decompose Conditionals: Use named variables to simplify complex `if` conditions.
-- Comments: Comments explain *why*, not *what*. Use lowercase single lines. ASCII illustrations are welcome.
 - Functional Style: Prefer pure functions (data in, data out) and immutability for logic.
 
-# C++ Specific Notes
+C++ Specific:
 
 - Structs over Classes: Strictly separate data from logic. Use struct for pure data containers (PODs). Behavior belongs in stateless functions within namespaces, not member functions.
 - No Constructors/Destructors in Data: Data structs should be aggregates. Initialize them using C++20 Designated Initializers (e.g., `Point p{ .x = 10, .y = 20 };`).

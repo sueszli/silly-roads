@@ -1,5 +1,7 @@
 #include "terrain.hpp"
+#include "game_state.hpp"
 #include "raymath.h"
+#include "rlgl.h" // For any lower level calls if needed, though mostly standard raylib here
 
 #include <algorithm>
 #include <cassert>
@@ -10,9 +12,11 @@
 #include <random>
 #include <vector>
 
+namespace Terrain {
+
 namespace {
 
-// TILE_SIZE is now in terrain.hpp
+// Terrain::TILE_SIZE is now in terrain.hpp
 constexpr float NOISE_SCALE = 0.05f;         // frequency of the perlin noise (lower is smoother)
 constexpr float TERRAIN_HEIGHT_SCALE = 7.0f; // maximum amplitude of the terrain height
 
@@ -109,12 +113,12 @@ Vector3 catmull_rom(Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3, float t) {
 
 /** calculate height map for the grid */
 std::vector<float> compute_height_map(float offset_x, float offset_z) {
-    std::vector<float> height_map(GRID_SIZE * GRID_SIZE);
-    for (int z = 0; z < GRID_SIZE; z++) {
-        for (int x = 0; x < GRID_SIZE; x++) {
-            float wx = offset_x + (float)x * TILE_SIZE;
-            float wz = offset_z + (float)z * TILE_SIZE;
-            height_map[size_t(z * GRID_SIZE + x)] = get_terrain_height(wx, wz);
+    std::vector<float> height_map(Terrain::GRID_SIZE * Terrain::GRID_SIZE);
+    for (int z = 0; z < Terrain::GRID_SIZE; z++) {
+        for (int x = 0; x < Terrain::GRID_SIZE; x++) {
+            float wx = offset_x + (float)x * Terrain::TILE_SIZE;
+            float wz = offset_z + (float)z * Terrain::TILE_SIZE;
+            height_map[size_t(z * Terrain::GRID_SIZE + x)] = Terrain::get_height(wx, wz);
         }
     }
     return height_map;
@@ -122,15 +126,15 @@ std::vector<float> compute_height_map(float offset_x, float offset_z) {
 
 /** calculate signed distance field for the road */
 std::vector<float> compute_sdf_map(float offset_x, float offset_z, const std::vector<Vector3> &road_path) {
-    std::vector<float> dist_map(GRID_SIZE * GRID_SIZE, 1e9f);
+    std::vector<float> dist_map(Terrain::GRID_SIZE * Terrain::GRID_SIZE, 1e9f);
     constexpr float margin = 12.0f;
-    constexpr float f_grid_size = static_cast<float>(GRID_SIZE - 1);
+    constexpr float f_grid_size = static_cast<float>(Terrain::GRID_SIZE - 1);
 
     // Bounds check optimization
     const float min_x_world = offset_x;
     const float min_z_world = offset_z;
-    const float max_x_world = offset_x + f_grid_size * TILE_SIZE;
-    const float max_z_world = offset_z + f_grid_size * TILE_SIZE;
+    const float max_x_world = offset_x + f_grid_size * Terrain::TILE_SIZE;
+    const float max_z_world = offset_z + f_grid_size * Terrain::TILE_SIZE;
 
     auto segments = get_road_segments_in_bounds(road_path, min_x_world, min_z_world, max_x_world, max_z_world, margin);
 
@@ -147,10 +151,10 @@ std::vector<float> compute_sdf_map(float offset_x, float offset_z, const std::ve
         float s_min_z = std::min(p1.z, p2.z) - (HALF_ROAD_WIDTH + FADE_WIDTH + 1.0f);
         float s_max_z = std::max(p1.z, p2.z) + (HALF_ROAD_WIDTH + FADE_WIDTH + 1.0f);
 
-        int x_start = std::max(0, (int)std::floor((s_min_x - offset_x) / TILE_SIZE));
-        int x_end = std::min(GRID_SIZE - 1, (int)std::ceil((s_max_x - offset_x) / TILE_SIZE));
-        int z_start = std::max(0, (int)std::floor((s_min_z - offset_z) / TILE_SIZE));
-        int z_end = std::min(GRID_SIZE - 1, (int)std::ceil((s_max_z - offset_z) / TILE_SIZE));
+        int x_start = std::max(0, (int)std::floor((s_min_x - offset_x) / Terrain::TILE_SIZE));
+        int x_end = std::min(Terrain::GRID_SIZE - 1, (int)std::ceil((s_max_x - offset_x) / Terrain::TILE_SIZE));
+        int z_start = std::max(0, (int)std::floor((s_min_z - offset_z) / Terrain::TILE_SIZE));
+        int z_end = std::min(Terrain::GRID_SIZE - 1, (int)std::ceil((s_max_z - offset_z) / Terrain::TILE_SIZE));
 
         Vector3 ab = Vector3Subtract(p2, p1);
         Vector3 ab2d = {ab.x, 0, ab.z};
@@ -158,8 +162,8 @@ std::vector<float> compute_sdf_map(float offset_x, float offset_z, const std::ve
 
         for (int z = z_start; z <= z_end; z++) {
             for (int x = x_start; x <= x_end; x++) {
-                float wx = offset_x + (float)x * TILE_SIZE;
-                float wz = offset_z + (float)z * TILE_SIZE;
+                float wx = offset_x + (float)x * Terrain::TILE_SIZE;
+                float wz = offset_z + (float)z * Terrain::TILE_SIZE;
 
                 Vector3 ap = {wx - p1.x, 0, wz - p1.z};
                 float t = 0.0f;
@@ -173,7 +177,7 @@ std::vector<float> compute_sdf_map(float offset_x, float offset_z, const std::ve
                 float dz = wz - closest.z;
                 float dist_sq = dx * dx + dz * dz;
 
-                float &current = dist_map[(size_t)(z * GRID_SIZE + x)];
+                float &current = dist_map[(size_t)(z * Terrain::GRID_SIZE + x)];
                 if (dist_sq < current)
                     current = dist_sq;
             }
@@ -182,25 +186,7 @@ std::vector<float> compute_sdf_map(float offset_x, float offset_z, const std::ve
     return dist_map;
 }
 
-/** calculates surface normal using central difference */
-Vector3 get_terrain_normal(float x, float z) {
-    const float h = get_terrain_height(x, z);
-    constexpr float step = 0.1f;
-    const float h_x = get_terrain_height(x + step, z);
-    const float h_z = get_terrain_height(x, z + step);
-
-    const Vector3 v1 = {step, h_x - h, 0.0f};
-    const Vector3 v2 = {0.0f, h_z - h, step};
-
-    const Vector3 normal = {v2.y * v1.z - v2.z * v1.y, v2.z * v1.x - v2.x * v1.z, v2.x * v1.y - v2.y * v1.x};
-    const float len = std::sqrt(normal.x * normal.x + normal.y * normal.y + normal.z * normal.z);
-    if (len > 0.0f) {
-        return {normal.x / len, normal.y / len, normal.z / len};
-    }
-    return {0.0f, 1.0f, 0.0f};
-}
-
-void generate_mesh_geometry(Mesh &mesh, const std::vector<float> &height_map, const std::vector<float> &dist_map, float offset_x, float offset_z) {
+void generate_geometry(Mesh &mesh, const std::vector<float> &height_map, const std::vector<float> &dist_map, float offset_x, float offset_z) {
     constexpr Color ROAD_COLOR = BROWN;
     constexpr Color TERRAIN_COLOR_1 = DARKGREEN;
     constexpr Color TERRAIN_COLOR_2 = GREEN;
@@ -208,9 +194,9 @@ void generate_mesh_geometry(Mesh &mesh, const std::vector<float> &height_map, co
     constexpr float HALF_ROAD_WIDTH = ROAD_WIDTH * 0.5f;
     constexpr float FADE_WIDTH = 2.0f;
 
-    for (int z = 0; z < GRID_SIZE; z++) {
-        for (int x = 0; x < GRID_SIZE; x++) {
-            int idx = z * GRID_SIZE + x;
+    for (int z = 0; z < Terrain::GRID_SIZE; z++) {
+        for (int x = 0; x < Terrain::GRID_SIZE; x++) {
+            int idx = z * Terrain::GRID_SIZE + x;
 
             // Local Coordinates for Mesh
             float lx = (float)x * TILE_SIZE;
@@ -224,7 +210,7 @@ void generate_mesh_geometry(Mesh &mesh, const std::vector<float> &height_map, co
             // Normals
             float wx = offset_x + lx;
             float wz = offset_z + lz;
-            Vector3 n = get_terrain_normal(wx, wz);
+            Vector3 n = get_normal(wx, wz);
 
             mesh.normals[idx * 3] = n.x;
             mesh.normals[idx * 3 + 1] = n.y;
@@ -261,14 +247,14 @@ void generate_mesh_geometry(Mesh &mesh, const std::vector<float> &height_map, co
 } // namespace
 
 /** calculates height using 2d world coordinates and noise */
-float get_terrain_height(float x, float z) { return sample_noise(x * NOISE_SCALE, 0.0f, z * NOISE_SCALE) * TERRAIN_HEIGHT_SCALE; }
+float get_height(float x, float z) { return sample_noise(x * NOISE_SCALE, 0.0f, z * NOISE_SCALE) * TERRAIN_HEIGHT_SCALE; }
 
 /** calculates surface normal using central difference */
-Vector3 get_terrain_normal(float x, float z) {
-    const float h = get_terrain_height(x, z);
+Vector3 get_normal(float x, float z) {
+    const float h = get_height(x, z);
     constexpr float step = 0.1f;
-    const float h_x = get_terrain_height(x + step, z);
-    const float h_z = get_terrain_height(x, z + step);
+    const float h_x = get_height(x + step, z);
+    const float h_z = get_height(x, z + step);
 
     const Vector3 v1 = {step, h_x - h, 0.0f};
     const Vector3 v2 = {0.0f, h_z - h, step};
@@ -282,12 +268,12 @@ Vector3 get_terrain_normal(float x, float z) {
 }
 
 /** builds the mesh buffers for the grid */
-Mesh generate_terrain_mesh_data(float offset_x, float offset_z, const std::vector<Vector3> &road_path) {
+Mesh generate_mesh_data(float offset_x, float offset_z, const std::vector<Vector3> &road_path) {
     Mesh mesh{};
 
     // Indexed mesh generation
-    constexpr int num_verts = GRID_SIZE * GRID_SIZE;
-    constexpr int num_tris = (GRID_SIZE - 1) * (GRID_SIZE - 1) * 2;
+    constexpr int num_verts = Terrain::GRID_SIZE * Terrain::GRID_SIZE;
+    constexpr int num_tris = (Terrain::GRID_SIZE - 1) * (Terrain::GRID_SIZE - 1) * 2;
 
     mesh.vertexCount = num_verts;
     mesh.triangleCount = num_tris;
@@ -309,16 +295,16 @@ Mesh generate_terrain_mesh_data(float offset_x, float offset_z, const std::vecto
     std::vector<float> dist_map = compute_sdf_map(offset_x, offset_z, road_path);
 
     // 3. Generate Vertices (LOCAL COORDS) and Normals
-    generate_mesh_geometry(mesh, height_map, dist_map, offset_x, offset_z);
+    generate_geometry(mesh, height_map, dist_map, offset_x, offset_z);
 
     // 4. Generate Indices
     int i_counter = 0;
-    for (int z = 0; z < GRID_SIZE - 1; z++) {
-        for (int x = 0; x < GRID_SIZE - 1; x++) {
-            unsigned short i_tl = (unsigned short)(z * GRID_SIZE + x);
-            unsigned short i_bl = (unsigned short)((z + 1) * GRID_SIZE + x);
-            unsigned short i_br = (unsigned short)((z + 1) * GRID_SIZE + (x + 1));
-            unsigned short i_tr = (unsigned short)(z * GRID_SIZE + (x + 1));
+    for (int z = 0; z < Terrain::GRID_SIZE - 1; z++) {
+        for (int x = 0; x < Terrain::GRID_SIZE - 1; x++) {
+            unsigned short i_tl = (unsigned short)(z * Terrain::GRID_SIZE + x);
+            unsigned short i_bl = (unsigned short)((z + 1) * Terrain::GRID_SIZE + x);
+            unsigned short i_br = (unsigned short)((z + 1) * Terrain::GRID_SIZE + (x + 1));
+            unsigned short i_tr = (unsigned short)(z * Terrain::GRID_SIZE + (x + 1));
 
             // T1
             mesh.indices[i_counter++] = i_tl;
@@ -366,3 +352,156 @@ std::vector<Vector3> generate_road_path(const std::vector<Vector3> &control_poin
 
     return center_points;
 }
+
+void update(GameState *state) {
+    assert(state != nullptr);
+
+    float chunk_world_size = (GRID_SIZE - 1) * TILE_SIZE;
+    state->chunk_size = chunk_world_size;
+
+    int center_cx = (int)std::floor(state->car.pos.x / chunk_world_size);
+    int center_cz = (int)std::floor(state->car.pos.z / chunk_world_size);
+
+    // 5x5 Grid (radius 2)
+    int render_radius = 2; // -2 to +2
+
+    // 1. Identify valid chunks
+    // Keep existing chunks that are in range, unload others
+    std::erase_if(state->terrain_chunks, [&](const GameState::TerrainChunk &chunk) {
+        bool in_range = std::abs(chunk.cx - center_cx) <= render_radius && std::abs(chunk.cz - center_cz) <= render_radius;
+        if (!in_range) {
+            UnloadModel(chunk.model);
+        }
+        return !in_range;
+    });
+
+    // 2. Identify missing chunks and load them
+    for (int z = -render_radius; z <= render_radius; z++) {
+        for (int x = -render_radius; x <= render_radius; x++) {
+            int target_cx = center_cx + x;
+            int target_cz = center_cz + z;
+
+            bool exists = std::any_of(state->terrain_chunks.begin(), state->terrain_chunks.end(), [target_cx, target_cz](const GameState::TerrainChunk &chunk) { return chunk.cx == target_cx && chunk.cz == target_cz; });
+
+            if (!exists) {
+                // Generate chunk
+                float ox = (float)target_cx * chunk_world_size;
+                float oz = (float)target_cz * chunk_world_size;
+
+                Mesh mesh = generate_mesh_data(ox, oz, state->road.dense_points);
+                UploadMesh(&mesh, false);
+
+                Model model = LoadModelFromMesh(mesh);
+                model.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = state->texture;
+
+                state->terrain_chunks.push_back({target_cx, target_cz, model});
+            }
+        }
+    }
+}
+
+Texture2D load_texture() {
+    // plain white texture, so vertex colors are unfiltered
+    Image white = GenImageColor(2, 2, WHITE);
+    Texture2D texture = LoadTextureFromImage(white);
+    assert(texture.id != 0);
+    UnloadImage(white);
+    return texture;
+}
+
+namespace {
+Vector3 generate_next_road_point(Components::RoadState &road) {
+    const float step_size = 20.0f;
+
+    // use stored state for continuous generation
+    float x = road.gen_x;
+    float z = road.gen_z;
+    float angle = road.gen_angle;
+    std::int32_t segment_index = road.gen_next_segment;
+
+    // advance position
+    if (segment_index > 0) {
+        x += std::cos(angle) * step_size;
+        z += std::sin(angle) * step_size;
+    }
+
+    // deterministic "noise" for winding path
+    float noise = std::sin((float)segment_index * 0.3f) * 0.5f + std::cos((float)segment_index * 0.17f) * 0.3f;
+    angle += noise * 0.2f;
+
+    // update state for next call
+    road.gen_x = x;
+    road.gen_z = z;
+    road.gen_angle = angle;
+    road.gen_next_segment = segment_index + 1;
+
+    float y = Terrain::get_height(x, z);
+    return {x, y, z};
+}
+} // namespace
+
+void init_road(Components::RoadState &road) {
+    if (road.initialized) {
+        return;
+    }
+
+    // initialize generation state
+    road.gen_x = 0.0f;
+    road.gen_z = 0.0f;
+    road.gen_angle = 0.0f;
+    road.gen_next_segment = 0;
+
+    // generate initial road ahead
+    road.points.clear();
+    road.points.reserve(128); // reserve space to avoid reallocations
+
+    for (int i = 0; i < 128; i++) {
+        road.points.push_back(generate_next_road_point(road));
+    }
+
+    road.initialized = true;
+    road.dense_points = Terrain::generate_road_path(road.points);
+    std::printf("[ROAD] Generated initial %zu points\n", road.points.size());
+}
+
+void update_road(Components::RoadState &road, const Vector3 &car_pos) {
+    if (!road.initialized) {
+        return;
+    }
+
+    // find closest road point to car
+    int closest_idx = 0;
+    float min_dist_sq = 1e9f;
+    for (size_t i = 0; i < road.points.size(); i++) {
+        Vector3 to_car = Vector3Subtract(car_pos, road.points[i]);
+        float dist_sq = to_car.x * to_car.x + to_car.z * to_car.z; // ignore Y
+        if (dist_sq < min_dist_sq) {
+            min_dist_sq = dist_sq;
+            closest_idx = (int)i;
+        }
+    }
+
+    // generate new points if we're near the end
+    int points_ahead = (int)road.points.size() - closest_idx;
+    const int min_points_ahead = 64;
+
+    if (points_ahead < min_points_ahead) {
+        int to_generate = min_points_ahead - points_ahead;
+        for (int i = 0; i < to_generate; i++) {
+            road.points.push_back(generate_next_road_point(road));
+        }
+
+        // Prune old points to prevent infinite growth and lag
+        // Keep some points behind for spline continuity and rear visibility
+        const int keep_behind = 32;
+        if (closest_idx > keep_behind + 16) {
+            int prune_count = closest_idx - keep_behind;
+            road.points.erase(road.points.begin(), road.points.begin() + prune_count);
+        }
+
+        // regenerate dense points
+        road.dense_points = Terrain::generate_road_path(road.points);
+    }
+}
+
+} // namespace Terrain
