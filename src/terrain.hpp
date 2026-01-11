@@ -17,12 +17,6 @@ constexpr float TILE_SIZE = 1.0f;
 /** returns the calculated terrain elevation (y) at world coordinates (x, z) */
 float get_height(float x, float z);
 
-/** calculates surface normal */
-Vector3 get_normal(float x, float z);
-
-/** generates the dense path of points for the road using Catmull-Rom splines */
-std::vector<Vector3> generate_road_path(const std::vector<Vector3> &control_points);
-
 /** updates terrain chunks based on car position */
 void update(GameState *state);
 

@@ -186,6 +186,56 @@ std::vector<float> compute_sdf_map(float offset_x, float offset_z, const std::ve
     return dist_map;
 }
 
+/** calculates surface normal using central difference */
+Vector3 get_normal(float x, float z) {
+    const float h = get_height(x, z);
+    constexpr float step = 0.1f;
+    const float h_x = get_height(x + step, z);
+    const float h_z = get_height(x, z + step);
+
+    const Vector3 v1 = {step, h_x - h, 0.0f};
+    const Vector3 v2 = {0.0f, h_z - h, step};
+
+    const Vector3 normal = {v2.y * v1.z - v2.z * v1.y, v2.z * v1.x - v2.x * v1.z, v2.x * v1.y - v2.y * v1.x};
+    const float len = std::sqrt(normal.x * normal.x + normal.y * normal.y + normal.z * normal.z);
+    if (len > 0.0f) {
+        return {normal.x / len, normal.y / len, normal.z / len};
+    }
+    return {0.0f, 1.0f, 0.0f};
+}
+
+std::vector<Vector3> generate_road_path(const std::vector<Vector3> &control_points) {
+    if (control_points.size() < 2) {
+        return {};
+    }
+
+    const int samples_per_segment = 4;
+    const int count = (int)control_points.size();
+    const int total_samples = (count - 1) * samples_per_segment + 1;
+
+    std::vector<Vector3> center_points(static_cast<std::size_t>(total_samples));
+
+    for (int i = 0; i < total_samples; i++) {
+        float global_t = (float)i / (float)samples_per_segment;
+        int segment = (int)global_t;
+        float local_t = global_t - (float)segment;
+
+        if (segment >= count - 1) {
+            segment = count - 2;
+            local_t = 1.0f;
+        }
+
+        int i0 = (segment > 0) ? segment - 1 : 0;
+        int i1 = segment;
+        int i2 = segment + 1;
+        int i3 = (segment + 2 < count) ? segment + 2 : count - 1;
+
+        center_points[static_cast<std::size_t>(i)] = catmull_rom(control_points[static_cast<std::size_t>(i0)], control_points[static_cast<std::size_t>(i1)], control_points[static_cast<std::size_t>(i2)], control_points[static_cast<std::size_t>(i3)], local_t);
+    }
+
+    return center_points;
+}
+
 void generate_geometry(Mesh &mesh, const std::vector<float> &height_map, const std::vector<float> &dist_map, float offset_x, float offset_z) {
     constexpr Color ROAD_COLOR = BROWN;
     constexpr Color TERRAIN_COLOR_1 = DARKGREEN;
@@ -249,24 +299,6 @@ void generate_geometry(Mesh &mesh, const std::vector<float> &height_map, const s
 /** calculates height using 2d world coordinates and noise */
 float get_height(float x, float z) { return sample_noise(x * NOISE_SCALE, 0.0f, z * NOISE_SCALE) * TERRAIN_HEIGHT_SCALE; }
 
-/** calculates surface normal using central difference */
-Vector3 get_normal(float x, float z) {
-    const float h = get_height(x, z);
-    constexpr float step = 0.1f;
-    const float h_x = get_height(x + step, z);
-    const float h_z = get_height(x, z + step);
-
-    const Vector3 v1 = {step, h_x - h, 0.0f};
-    const Vector3 v2 = {0.0f, h_z - h, step};
-
-    const Vector3 normal = {v2.y * v1.z - v2.z * v1.y, v2.z * v1.x - v2.x * v1.z, v2.x * v1.y - v2.y * v1.x};
-    const float len = std::sqrt(normal.x * normal.x + normal.y * normal.y + normal.z * normal.z);
-    if (len > 0.0f) {
-        return {normal.x / len, normal.y / len, normal.z / len};
-    }
-    return {0.0f, 1.0f, 0.0f};
-}
-
 /** builds the mesh buffers for the grid */
 Mesh generate_mesh_data(float offset_x, float offset_z, const std::vector<Vector3> &road_path) {
     Mesh mesh{};
@@ -319,38 +351,6 @@ Mesh generate_mesh_data(float offset_x, float offset_z, const std::vector<Vector
     }
 
     return mesh;
-}
-
-std::vector<Vector3> generate_road_path(const std::vector<Vector3> &control_points) {
-    if (control_points.size() < 2) {
-        return {};
-    }
-
-    const int samples_per_segment = 4;
-    const int count = (int)control_points.size();
-    const int total_samples = (count - 1) * samples_per_segment + 1;
-
-    std::vector<Vector3> center_points(static_cast<std::size_t>(total_samples));
-
-    for (int i = 0; i < total_samples; i++) {
-        float global_t = (float)i / (float)samples_per_segment;
-        int segment = (int)global_t;
-        float local_t = global_t - (float)segment;
-
-        if (segment >= count - 1) {
-            segment = count - 2;
-            local_t = 1.0f;
-        }
-
-        int i0 = (segment > 0) ? segment - 1 : 0;
-        int i1 = segment;
-        int i2 = segment + 1;
-        int i3 = (segment + 2 < count) ? segment + 2 : count - 1;
-
-        center_points[static_cast<std::size_t>(i)] = catmull_rom(control_points[static_cast<std::size_t>(i0)], control_points[static_cast<std::size_t>(i1)], control_points[static_cast<std::size_t>(i2)], control_points[static_cast<std::size_t>(i3)], local_t);
-    }
-
-    return center_points;
 }
 
 void update(GameState *state) {
@@ -460,7 +460,7 @@ void init_road(Components::RoadState &road) {
     }
 
     road.initialized = true;
-    road.dense_points = Terrain::generate_road_path(road.points);
+    road.dense_points = generate_road_path(road.points);
     std::printf("[ROAD] Generated initial %zu points\n", road.points.size());
 }
 
@@ -500,7 +500,7 @@ void update_road(Components::RoadState &road, const Vector3 &car_pos) {
         }
 
         // regenerate dense points
-        road.dense_points = Terrain::generate_road_path(road.points);
+        road.dense_points = generate_road_path(road.points);
     }
 }
 
