@@ -156,19 +156,14 @@ void update_terrain_mut(GameState *state) {
     int render_radius = 2; // -2 to +2
 
     // 1. Identify valid chunks
-    std::vector<GameState::TerrainChunk> new_chunks;
-    new_chunks.reserve(state->terrain_chunks.size());
-
-    // Keep existing chunks that are in range
-    for (const auto &chunk : state->terrain_chunks) {
-        if (std::abs(chunk.cx - center_cx) <= render_radius && std::abs(chunk.cz - center_cz) <= render_radius) {
-            new_chunks.push_back(chunk);
-        } else {
-            // Unload
+    // Keep existing chunks that are in range, unload others
+    std::erase_if(state->terrain_chunks, [&](const GameState::TerrainChunk &chunk) {
+        bool in_range = std::abs(chunk.cx - center_cx) <= render_radius && std::abs(chunk.cz - center_cz) <= render_radius;
+        if (!in_range) {
             UnloadModel(chunk.model);
         }
-    }
-    state->terrain_chunks = std::move(new_chunks);
+        return !in_range;
+    });
 
     // 2. Identify missing chunks and load them
     for (int z = -render_radius; z <= render_radius; z++) {

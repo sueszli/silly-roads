@@ -1,13 +1,13 @@
-Based on https://tigerstyle.dev/
+Based on tigerstyle.
 
 # (1) Safety
 
 - Zero Technical Debt: Fix issues immediately. Never rely on future refactoring.
 - Assert Aggressively: Validate inputs, outputs, tensor shapes and invariants in every function.
 - Pair Assertions: Check critical data at multiple points to catch internal inconsistencies.
-- Bounded Execution: Set fixed upper limits on all loops, queues and recursion depth (`especially` for graph traversal)`.`
-- Fail Fast: Detect unexpected conditions `immediately. Crash` rather than `corrupt` state.
-- `No` Undefined Behavior: Rely on explicit code, not compiler optimizations. Treat all compiler warnings as errors.
+- Bounded Execution: Set fixed upper limits on all loops, queues and recursion depth (especially for graph traversal).
+- Fail Fast: Detect unexpected conditions immediately. Crash rather than corrupt state.
+- No Undefined Behavior: Rely on explicit code, not compiler optimizations. Treat all compiler warnings as errors.
 - Controlled Memory:
     - Strongly prefer static allocation over dynamic allocation.
     - When dynamic allocation is necessary (e.g., graph construction), use arenas or memory pools*

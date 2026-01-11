@@ -107,69 +107,30 @@ Vector3 catmull_rom(Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3, float t) {
     return res;
 }
 
-} // namespace
-
-/** calculates height using 2d world coordinates and noise */
-float get_terrain_height(float x, float z) { return sample_noise(x * NOISE_SCALE, 0.0f, z * NOISE_SCALE) * TERRAIN_HEIGHT_SCALE; }
-
-/** calculates surface normal using central difference */
-Vector3 get_terrain_normal(float x, float z) {
-    const float h = get_terrain_height(x, z);
-    constexpr float step = 0.1f;
-    const float h_x = get_terrain_height(x + step, z);
-    const float h_z = get_terrain_height(x, z + step);
-
-    const Vector3 v1 = {step, h_x - h, 0.0f};
-    const Vector3 v2 = {0.0f, h_z - h, step};
-
-    const Vector3 normal = {v2.y * v1.z - v2.z * v1.y, v2.z * v1.x - v2.x * v1.z, v2.x * v1.y - v2.y * v1.x};
-    const float len = std::sqrt(normal.x * normal.x + normal.y * normal.y + normal.z * normal.z);
-    if (len > 0.0f) {
-        return {normal.x / len, normal.y / len, normal.z / len};
-    }
-    return {0.0f, 1.0f, 0.0f};
-}
-
-/** builds the mesh buffers for the grid */
-Mesh generate_terrain_mesh_data(float offset_x, float offset_z, const std::vector<Vector3> &road_path) {
-    Mesh mesh{};
-
-    // Indexed mesh generation
-    constexpr int num_verts = GRID_SIZE * GRID_SIZE;
-    constexpr int num_tris = (GRID_SIZE - 1) * (GRID_SIZE - 1) * 2;
-
-    mesh.vertexCount = num_verts;
-    mesh.triangleCount = num_tris;
-
-    // allocate memory
-    mesh.vertices = static_cast<float *>(MemAlloc(static_cast<std::uint32_t>(mesh.vertexCount) * 3 * sizeof(float)));
-    mesh.normals = static_cast<float *>(MemAlloc(static_cast<std::uint32_t>(mesh.vertexCount) * 3 * sizeof(float)));
-    mesh.texcoords = static_cast<float *>(MemAlloc(static_cast<std::uint32_t>(mesh.vertexCount) * 2 * sizeof(float)));
-    mesh.colors = static_cast<unsigned char *>(MemAlloc(static_cast<std::uint32_t>(mesh.vertexCount) * 4 * sizeof(unsigned char)));
-    mesh.indices = static_cast<unsigned short *>(MemAlloc(static_cast<std::uint32_t>(mesh.triangleCount) * 3 * sizeof(unsigned short)));
-
-    assert(mesh.vertices != nullptr);
-    assert(mesh.indices != nullptr);
-
-    // 1. Pre-calculate height map (Global Coordinates for Height, Local for Indexing)
-    std::vector<float> height_map(num_verts);
+/** calculate height map for the grid */
+std::vector<float> compute_height_map(float offset_x, float offset_z) {
+    std::vector<float> height_map(GRID_SIZE * GRID_SIZE);
     for (int z = 0; z < GRID_SIZE; z++) {
         for (int x = 0; x < GRID_SIZE; x++) {
-            // Global coords for noise
             float wx = offset_x + (float)x * TILE_SIZE;
             float wz = offset_z + (float)z * TILE_SIZE;
             height_map[size_t(z * GRID_SIZE + x)] = get_terrain_height(wx, wz);
         }
     }
+    return height_map;
+}
 
-    // 2. Pre-calculate SDF map for road
-    std::vector<float> dist_map(num_verts, 1e9f);
-
+/** calculate signed distance field for the road */
+std::vector<float> compute_sdf_map(float offset_x, float offset_z, const std::vector<Vector3> &road_path) {
+    std::vector<float> dist_map(GRID_SIZE * GRID_SIZE, 1e9f);
     constexpr float margin = 12.0f;
+    constexpr float f_grid_size = static_cast<float>(GRID_SIZE - 1);
+
+    // Bounds check optimization
     const float min_x_world = offset_x;
     const float min_z_world = offset_z;
-    const float max_x_world = offset_x + (GRID_SIZE - 1) * TILE_SIZE;
-    const float max_z_world = offset_z + (GRID_SIZE - 1) * TILE_SIZE;
+    const float max_x_world = offset_x + f_grid_size * TILE_SIZE;
+    const float max_z_world = offset_z + f_grid_size * TILE_SIZE;
 
     auto segments = get_road_segments_in_bounds(road_path, min_x_world, min_z_world, max_x_world, max_z_world, margin);
 
@@ -218,11 +179,34 @@ Mesh generate_terrain_mesh_data(float offset_x, float offset_z, const std::vecto
             }
         }
     }
+    return dist_map;
+}
 
-    // 3. Generate Vertices (LOCAL COORDS) and Normals
+/** calculates surface normal using central difference */
+Vector3 get_terrain_normal(float x, float z) {
+    const float h = get_terrain_height(x, z);
+    constexpr float step = 0.1f;
+    const float h_x = get_terrain_height(x + step, z);
+    const float h_z = get_terrain_height(x, z + step);
+
+    const Vector3 v1 = {step, h_x - h, 0.0f};
+    const Vector3 v2 = {0.0f, h_z - h, step};
+
+    const Vector3 normal = {v2.y * v1.z - v2.z * v1.y, v2.z * v1.x - v2.x * v1.z, v2.x * v1.y - v2.y * v1.x};
+    const float len = std::sqrt(normal.x * normal.x + normal.y * normal.y + normal.z * normal.z);
+    if (len > 0.0f) {
+        return {normal.x / len, normal.y / len, normal.z / len};
+    }
+    return {0.0f, 1.0f, 0.0f};
+}
+
+void generate_mesh_geometry(Mesh &mesh, const std::vector<float> &height_map, const std::vector<float> &dist_map, float offset_x, float offset_z) {
     constexpr Color ROAD_COLOR = BROWN;
     constexpr Color TERRAIN_COLOR_1 = DARKGREEN;
     constexpr Color TERRAIN_COLOR_2 = GREEN;
+    constexpr float ROAD_WIDTH = 8.0f;
+    constexpr float HALF_ROAD_WIDTH = ROAD_WIDTH * 0.5f;
+    constexpr float FADE_WIDTH = 2.0f;
 
     for (int z = 0; z < GRID_SIZE; z++) {
         for (int x = 0; x < GRID_SIZE; x++) {
@@ -237,7 +221,7 @@ Mesh generate_terrain_mesh_data(float offset_x, float offset_z, const std::vecto
             mesh.vertices[idx * 3 + 1] = wy;
             mesh.vertices[idx * 3 + 2] = lz;
 
-            // Normals (Requires global coords for noise query if looking up neighbors not in map)
+            // Normals
             float wx = offset_x + lx;
             float wz = offset_z + lz;
             Vector3 n = get_terrain_normal(wx, wz);
@@ -272,6 +256,60 @@ Mesh generate_terrain_mesh_data(float offset_x, float offset_z, const std::vecto
             mesh.colors[idx * 4 + 3] = col.a;
         }
     }
+}
+
+} // namespace
+
+/** calculates height using 2d world coordinates and noise */
+float get_terrain_height(float x, float z) { return sample_noise(x * NOISE_SCALE, 0.0f, z * NOISE_SCALE) * TERRAIN_HEIGHT_SCALE; }
+
+/** calculates surface normal using central difference */
+Vector3 get_terrain_normal(float x, float z) {
+    const float h = get_terrain_height(x, z);
+    constexpr float step = 0.1f;
+    const float h_x = get_terrain_height(x + step, z);
+    const float h_z = get_terrain_height(x, z + step);
+
+    const Vector3 v1 = {step, h_x - h, 0.0f};
+    const Vector3 v2 = {0.0f, h_z - h, step};
+
+    const Vector3 normal = {v2.y * v1.z - v2.z * v1.y, v2.z * v1.x - v2.x * v1.z, v2.x * v1.y - v2.y * v1.x};
+    const float len = std::sqrt(normal.x * normal.x + normal.y * normal.y + normal.z * normal.z);
+    if (len > 0.0f) {
+        return {normal.x / len, normal.y / len, normal.z / len};
+    }
+    return {0.0f, 1.0f, 0.0f};
+}
+
+/** builds the mesh buffers for the grid */
+Mesh generate_terrain_mesh_data(float offset_x, float offset_z, const std::vector<Vector3> &road_path) {
+    Mesh mesh{};
+
+    // Indexed mesh generation
+    constexpr int num_verts = GRID_SIZE * GRID_SIZE;
+    constexpr int num_tris = (GRID_SIZE - 1) * (GRID_SIZE - 1) * 2;
+
+    mesh.vertexCount = num_verts;
+    mesh.triangleCount = num_tris;
+
+    // allocate memory
+    mesh.vertices = static_cast<float *>(MemAlloc(static_cast<std::uint32_t>(mesh.vertexCount) * 3 * sizeof(float)));
+    mesh.normals = static_cast<float *>(MemAlloc(static_cast<std::uint32_t>(mesh.vertexCount) * 3 * sizeof(float)));
+    mesh.texcoords = static_cast<float *>(MemAlloc(static_cast<std::uint32_t>(mesh.vertexCount) * 2 * sizeof(float)));
+    mesh.colors = static_cast<unsigned char *>(MemAlloc(static_cast<std::uint32_t>(mesh.vertexCount) * 4 * sizeof(unsigned char)));
+    mesh.indices = static_cast<unsigned short *>(MemAlloc(static_cast<std::uint32_t>(mesh.triangleCount) * 3 * sizeof(unsigned short)));
+
+    assert(mesh.vertices != nullptr);
+    assert(mesh.indices != nullptr);
+
+    // 1. Pre-calculate height map (Global Coordinates for Height, Local for Indexing)
+    std::vector<float> height_map = compute_height_map(offset_x, offset_z);
+
+    // 2. Pre-calculate SDF map for road
+    std::vector<float> dist_map = compute_sdf_map(offset_x, offset_z, road_path);
+
+    // 3. Generate Vertices (LOCAL COORDS) and Normals
+    generate_mesh_geometry(mesh, height_map, dist_map, offset_x, offset_z);
 
     // 4. Generate Indices
     int i_counter = 0;

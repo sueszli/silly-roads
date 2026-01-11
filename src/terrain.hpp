@@ -13,9 +13,6 @@ constexpr float TILE_SIZE = 1.0f;
 /** returns the calculated terrain elevation (y) at world coordinates (x, z) */
 float get_terrain_height(float x, float z);
 
-/** returns the normalized surface normal vector at world coordinates (x, z) for physics or lighting */
-Vector3 get_terrain_normal(float x, float z);
-
 Mesh generate_terrain_mesh_data(float offset_x, float offset_z, const std::vector<Vector3> &road_path);
 
 /** generates the dense path of points for the road using Catmull-Rom splines */
