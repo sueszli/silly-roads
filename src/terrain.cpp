@@ -1,5 +1,4 @@
 #include "terrain.hpp"
-#include "game_state.hpp"
 #include "raymath.h"
 #include "rlgl.h"
 
@@ -159,25 +158,25 @@ namespace Terrain {
 
 float get_height(float x, float z) { return sample_perlin_noise(x * NOISE_SCALE, 0.0f, z * NOISE_SCALE) * TERRAIN_HEIGHT_SCALE; }
 
-void init(GameState &state) {
+void init(Vector3 &out_pos, float &out_heading) {
     Image img = GenImageColor(2, 2, WHITE);
     internal_state.texture = LoadTextureFromImage(img);
     UnloadImage(img);
     internal_state.chunk_size = CHUNK_SIZE;
 
-    // reset car
+    // compute road start position
     float start_z = 0.0f;
     float start_x = get_road_center_x(start_z) + 1.5f;
-    state.car.pos = {start_x, get_height(start_x, start_z) + 2.0f, start_z};
+    out_pos = {start_x, get_height(start_x, start_z) + 2.0f, start_z};
 
     // align with road
     float look_ahead_x = get_road_center_x(start_z + 1.0f) + 1.5f;
-    state.car.heading = std::atan2(look_ahead_x - start_x, 1.0f);
+    out_heading = std::atan2(look_ahead_x - start_x, 1.0f);
 }
 
-void update(const GameState &state) {
-    const int cx = (int)std::floor(state.car.pos.x / CHUNK_SIZE);
-    const int cz = (int)std::floor(state.car.pos.z / CHUNK_SIZE);
+void update(const Vector3 &car_pos) {
+    const int cx = (int)std::floor(car_pos.x / CHUNK_SIZE);
+    const int cz = (int)std::floor(car_pos.z / CHUNK_SIZE);
 
     // unload distant chunks
     std::erase_if(internal_state.chunks, [&](const TerrainChunk &c) {

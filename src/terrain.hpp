@@ -1,6 +1,6 @@
 #pragma once
 
-#include "game_state.hpp"
+#include "raylib.h"
 #include <vector>
 
 namespace Terrain {
@@ -8,11 +8,11 @@ namespace Terrain {
 /** returns the calculated terrain elevation (y) at world coordinates (x, z) */
 float get_height(float x, float z);
 
-/** initializes the terrain system, loads textures, sets initial car state */
-void init(GameState &state);
+/** initializes the terrain system, loads textures. Returns the road start position and heading. */
+void init(Vector3 &out_pos, float &out_heading);
 
-/** updates the terrain system (chunk generation/unloading) */
-void update(const GameState &state);
+/** updates the terrain system (chunk generation/unloading) based on car position */
+void update(const Vector3 &car_pos);
 
 /** draws the terrain chunks */
 void draw();
