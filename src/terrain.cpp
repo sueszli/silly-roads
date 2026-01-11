@@ -40,7 +40,7 @@ float sample_perlin_noise(float x, float y, float z) {
         return p;
     };
 
-    const auto grad = [](int32_t hash, float x, float y, float z) {
+    const auto get_grad = [](int32_t hash, float x, float y, float z) {
         const int32_t h = hash & 15;
         const float u = h < 8 ? x : y;
         const float v = h < 4 ? y : h == 12 || h == 14 ? x : z;
@@ -73,21 +73,29 @@ float sample_perlin_noise(float x, float y, float z) {
     const size_t BA = static_cast<size_t>(p[B]) + idx_Z;
     const size_t BB = static_cast<size_t>(p[B + 1]) + idx_Z;
 
-    return lerp(w, lerp(v, lerp(u, grad(p[AA], x, y, z), grad(p[BA], x - 1, y, z)), lerp(u, grad(p[AB], x, y - 1, z), grad(p[BB], x - 1, y - 1, z))), lerp(v, lerp(u, grad(p[AA + 1], x, y, z - 1), grad(p[BA + 1], x - 1, y, z - 1)), lerp(u, grad(p[AB + 1], x, y - 1, z - 1), grad(p[BB + 1], x - 1, y - 1, z - 1))));
+    return lerp(w, lerp(v, lerp(u, get_grad(p[AA], x, y, z), get_grad(p[BA], x - 1, y, z)), lerp(u, get_grad(p[AB], x, y - 1, z), get_grad(p[BB], x - 1, y - 1, z))), lerp(v, lerp(u, get_grad(p[AA + 1], x, y, z - 1), get_grad(p[BA + 1], x - 1, y, z - 1)), lerp(u, get_grad(p[AB + 1], x, y - 1, z - 1), get_grad(p[BB + 1], x - 1, y - 1, z - 1))));
 }
 
 float get_road_center_x(float z) { return sample_perlin_noise(0.0f, 42.0f, z * ROAD_NOISE_SCALE) * ROAD_AMPLITUDE; }
 
-Vector3 calculate_normal(float x, float z) {
-    const auto h = [](float x, float z) { return sample_perlin_noise(x * NOISE_SCALE, 0.0f, z * NOISE_SCALE) * TERRAIN_HEIGHT_SCALE; };
-    const float step = 0.1f;
-    const float height = h(x, z);
-    const Vector3 v1 = {step, h(x + step, z) - height, 0.0f};
-    const Vector3 v2 = {0.0f, h(x, z + step) - height, step};
-    return Vector3Normalize(Vector3CrossProduct(v2, v1));
-}
-
 Mesh generate_chunk_mesh(float offset_x, float offset_z) {
+    const auto get_normal = [](float x, float z) {
+        const auto h = [](float x, float z) { return sample_perlin_noise(x * NOISE_SCALE, 0.0f, z * NOISE_SCALE) * TERRAIN_HEIGHT_SCALE; };
+        const float step = 0.1f;
+        const float height = h(x, z);
+        const Vector3 v1 = {step, h(x + step, z) - height, 0.0f};
+        const Vector3 v2 = {0.0f, h(x, z + step) - height, step};
+        return Vector3Normalize(Vector3CrossProduct(v2, v1));
+    };
+    const auto get_color = [&](int x, int z, float wx, float wz) {
+        const float dist = std::abs(wx - get_road_center_x(wz));
+        Color col = ((x + z) % 2 == 0) ? DARKGREEN : GREEN; // green area
+        if (dist < 6.0f) {
+            col = (dist < 4.0f) ? BROWN : ColorLerp(BROWN, col, (dist - 4.0f) / 2.0f); // road
+        }
+        return col;
+    };
+
     Mesh mesh = {};
     mesh.vertexCount = GRID_SIZE * GRID_SIZE;
     mesh.triangleCount = (GRID_SIZE - 1) * (GRID_SIZE - 1) * 2;
@@ -98,61 +106,50 @@ Mesh generate_chunk_mesh(float offset_x, float offset_z) {
     mesh.colors = static_cast<unsigned char *>(MemAlloc(static_cast<unsigned int>(static_cast<size_t>(mesh.vertexCount) * 4 * sizeof(unsigned char))));
     mesh.indices = static_cast<unsigned short *>(MemAlloc(static_cast<unsigned int>(static_cast<size_t>(mesh.triangleCount) * 3 * sizeof(unsigned short))));
 
-    constexpr Color COLORS[] = {DARKGREEN, GREEN, BROWN}; // Dark, Light, Road
+    std::array<int, GRID_SIZE * GRID_SIZE> indices;
+    std::iota(indices.begin(), indices.end(), 0);
+    std::for_each(indices.begin(), indices.end(), [&](int i) {
+        const int x = i % GRID_SIZE;
+        const int z = i / GRID_SIZE;
+        const float wx = offset_x + x * TILE_SIZE;
+        const float wz = offset_z + z * TILE_SIZE;
+        const float wy = Terrain::get_height(wx, wz);
+        const Vector3 n = get_normal(wx, wz);
+        const Color col = get_color(x, z, wx, wz);
 
-    for (int z = 0; z < GRID_SIZE; ++z) {
-        for (int x = 0; x < GRID_SIZE; ++x) {
-            const int i = z * GRID_SIZE + x;
-            const float wx = offset_x + x * TILE_SIZE;
-            const float wz = offset_z + z * TILE_SIZE;
+        mesh.vertices[i * 3] = static_cast<float>(x) * TILE_SIZE;
+        mesh.vertices[i * 3 + 1] = wy;
+        mesh.vertices[i * 3 + 2] = static_cast<float>(z) * TILE_SIZE;
 
-            // Geometry
-            const float wy = Terrain::get_height(wx, wz);
-            const Vector3 n = calculate_normal(wx, wz);
+        mesh.normals[i * 3] = n.x;
+        mesh.normals[i * 3 + 1] = n.y;
+        mesh.normals[i * 3 + 2] = n.z;
 
-            mesh.vertices[i * 3] = (float)x * TILE_SIZE;
-            mesh.vertices[i * 3 + 1] = wy;
-            mesh.vertices[i * 3 + 2] = (float)z * TILE_SIZE;
+        mesh.texcoords[i * 2] = 0.0f;
+        mesh.texcoords[i * 2 + 1] = 0.0f;
 
-            mesh.normals[i * 3] = n.x;
-            mesh.normals[i * 3 + 1] = n.y;
-            mesh.normals[i * 3 + 2] = n.z;
+        mesh.colors[i * 4] = col.r;
+        mesh.colors[i * 4 + 1] = col.g;
+        mesh.colors[i * 4 + 2] = col.b;
+        mesh.colors[i * 4 + 3] = col.a;
+    });
 
-            mesh.texcoords[i * 2] = 0.0f;
-            mesh.texcoords[i * 2 + 1] = 0.0f;
-
-            // Color
-            float dist = std::abs(wx - get_road_center_x(wz));
-            Color col = ((x + z) % 2 == 0) ? COLORS[0] : COLORS[1];
-            if (dist < 6.0f) { // Road width
-                if (dist < 4.0f)
-                    col = COLORS[2];
-                else { // Fade
-                    float t = (dist - 4.0f) / 2.0f;
-                    col = ColorLerp(COLORS[2], col, t);
-                }
-            }
-            mesh.colors[i * 4] = col.r;
-            mesh.colors[i * 4 + 1] = col.g;
-            mesh.colors[i * 4 + 2] = col.b;
-            mesh.colors[i * 4 + 3] = col.a;
-        }
-    }
-
-    int idx = 0;
-    for (int z = 0; z < GRID_SIZE - 1; ++z) {
-        for (int x = 0; x < GRID_SIZE - 1; ++x) {
-            unsigned short tl = static_cast<unsigned short>(z * GRID_SIZE + x);
-            unsigned short bl = static_cast<unsigned short>((z + 1) * GRID_SIZE + x);
-
-            mesh.indices[idx++] = tl;
-            mesh.indices[idx++] = bl;
-            mesh.indices[idx++] = tl + 1;
-            mesh.indices[idx++] = tl + 1;
-            mesh.indices[idx++] = bl;
-            mesh.indices[idx++] = bl + 1;
-        }
-    }
+    constexpr int INDEX_GRID = GRID_SIZE - 1;
+    std::array<int, INDEX_GRID * INDEX_GRID> index_indices;
+    std::iota(index_indices.begin(), index_indices.end(), 0);
+    std::for_each(index_indices.begin(), index_indices.end(), [&](int i) {
+        const int x = i % INDEX_GRID;
+        const int z = i / INDEX_GRID;
+        const auto tl = static_cast<unsigned short>(z * GRID_SIZE + x);
+        const auto bl = static_cast<unsigned short>((z + 1) * GRID_SIZE + x);
+        const int idx = i * 6;
+        mesh.indices[idx] = tl;
+        mesh.indices[idx + 1] = bl;
+        mesh.indices[idx + 2] = tl + 1;
+        mesh.indices[idx + 3] = tl + 1;
+        mesh.indices[idx + 4] = bl;
+        mesh.indices[idx + 5] = bl + 1;
+    });
     return mesh;
 }
 
@@ -168,7 +165,7 @@ void init(GameState &state) {
     UnloadImage(img);
     internal_state.chunk_size = CHUNK_SIZE;
 
-    // Reset Car
+    // reset car
     float start_z = 0.0f;
     float start_x = get_road_center_x(start_z) + 1.5f; // Slightly offset
     state.car.pos = {start_x, get_height(start_x, start_z) + 2.0f, start_z};
