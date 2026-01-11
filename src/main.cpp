@@ -22,7 +22,6 @@ struct CarControls {
 struct WheelState {
     Vector3 local_offset; // position relative to car body
     float steering_angle; // only non-zero for front wheels
-    float spin_angle;     // rotation from rolling
 };
 
 struct Car {
@@ -33,10 +32,10 @@ struct Car {
     float pitch = 0.0f; // front/back tilt
     float roll = 0.0f;  // left/right tilt
     WheelState wheels[4] = {
-        {{-1.0f, -0.3f, 1.5f}, 0.0f, 0.0f},  // FR
-        {{1.0f, -0.3f, 1.5f}, 0.0f, 0.0f},   // FL
-        {{-1.0f, -0.3f, -1.5f}, 0.0f, 0.0f}, // BR
-        {{1.0f, -0.3f, -1.5f}, 0.0f, 0.0f},  // BL
+        {{-1.0f, -0.3f, 1.5f}, 0.0f},  // FR
+        {{1.0f, -0.3f, 1.5f}, 0.0f},   // FL
+        {{-1.0f, -0.3f, -1.5f}, 0.0f}, // BR
+        {{1.0f, -0.3f, -1.5f}, 0.0f},  // BL
     };
 };
 
