@@ -167,10 +167,10 @@ void init(GameState &state) {
 
     // reset car
     float start_z = 0.0f;
-    float start_x = get_road_center_x(start_z) + 1.5f; // Slightly offset
+    float start_x = get_road_center_x(start_z) + 1.5f;
     state.car.pos = {start_x, get_height(start_x, start_z) + 2.0f, start_z};
 
-    // Align with road
+    // align with road
     float look_ahead_x = get_road_center_x(start_z + 1.0f) + 1.5f;
     state.car.heading = std::atan2(look_ahead_x - start_x, 1.0f);
 }
@@ -179,7 +179,7 @@ void update(const GameState &state) {
     const int cx = (int)std::floor(state.car.pos.x / CHUNK_SIZE);
     const int cz = (int)std::floor(state.car.pos.z / CHUNK_SIZE);
 
-    // Unload distant chunks
+    // unload distant chunks
     std::erase_if(internal_state.chunks, [&](const TerrainChunk &c) {
         bool keep = std::abs(c.cx - cx) <= 2 && std::abs(c.cz - cz) <= 2;
         if (!keep)
@@ -187,7 +187,7 @@ void update(const GameState &state) {
         return !keep;
     });
 
-    // Load new chunks
+    // load new chunks
     for (int z = -2; z <= 2; ++z) {
         for (int x = -2; x <= 2; ++x) {
             if (std::none_of(internal_state.chunks.begin(), internal_state.chunks.end(), [&](const auto &c) { return c.cx == cx + x && c.cz == cz + z; })) {
