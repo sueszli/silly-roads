@@ -39,40 +39,40 @@ void update_physics_mut(GameState *state) {
     //
 
     // A/D steering & W/S drive force inputs
-    if (std::abs(state->car_speed) > 0.5f) {
-        float turn_factor = (state->car_speed > 0.0f) ? 1.0f : -1.0f; // reverse steering when going backward
+    if (std::abs(state->car.speed) > 0.5f) {
+        float turn_factor = (state->car.speed > 0.0f) ? 1.0f : -1.0f; // reverse steering when going backward
         if (IsKeyDown(KEY_D)) {
-            state->car_heading -= PHYS_TURN_RATE * dt * turn_factor;
+            state->car.heading -= PHYS_TURN_RATE * dt * turn_factor;
         }
         if (IsKeyDown(KEY_A)) {
-            state->car_heading += PHYS_TURN_RATE * dt * turn_factor;
+            state->car.heading += PHYS_TURN_RATE * dt * turn_factor;
         }
     }
     bool has_input = false;
     if (IsKeyDown(KEY_W)) {
-        state->car_speed += PHYS_ACCEL * dt;
+        state->car.speed += PHYS_ACCEL * dt;
         has_input = true;
     }
     if (IsKeyDown(KEY_S)) {
-        state->car_speed -= PHYS_BRAKE * dt;
+        state->car.speed -= PHYS_BRAKE * dt;
         has_input = true;
     }
 
     // speed limits & drag
-    if (state->car_speed > PHYS_MAX_SPEED)
-        state->car_speed = PHYS_MAX_SPEED;
-    if (state->car_speed < -PHYS_MAX_SPEED)
-        state->car_speed = -PHYS_MAX_SPEED;
-    state->car_speed *= PHYS_DRAG;
-    if (!has_input && std::abs(state->car_speed) < 0.1f)
-        state->car_speed = 0.0f;
+    if (state->car.speed > PHYS_MAX_SPEED)
+        state->car.speed = PHYS_MAX_SPEED;
+    if (state->car.speed < -PHYS_MAX_SPEED)
+        state->car.speed = -PHYS_MAX_SPEED;
+    state->car.speed *= PHYS_DRAG;
+    if (!has_input && std::abs(state->car.speed) < 0.1f)
+        state->car.speed = 0.0f;
 
     // calculate velocity & update horizontal position
     // moving body before sampling wheels prevents clipping at high speed
-    state->car_vel.x = std::sin(state->car_heading) * state->car_speed;
-    state->car_vel.z = std::cos(state->car_heading) * state->car_speed;
-    state->car_pos.x += state->car_vel.x * dt;
-    state->car_pos.z += state->car_vel.z * dt;
+    state->car.vel.x = std::sin(state->car.heading) * state->car.speed;
+    state->car.vel.z = std::cos(state->car.heading) * state->car.speed;
+    state->car.pos.x += state->car.vel.x * dt;
+    state->car.pos.z += state->car.vel.z * dt;
 
     //
     // wheel update
@@ -88,22 +88,22 @@ void update_physics_mut(GameState *state) {
         target_steer = MAX_STEER_ANGLE;
     }
 
-    state->wheels[0].steering_angle += (target_steer - state->wheels[0].steering_angle) * STEER_LERP_RATE * dt;
-    state->wheels[1].steering_angle += (target_steer - state->wheels[1].steering_angle) * STEER_LERP_RATE * dt;
-    state->wheels[2].steering_angle = 0.0f;
-    state->wheels[3].steering_angle = 0.0f;
+    state->car.wheels[0].steering_angle += (target_steer - state->car.wheels[0].steering_angle) * STEER_LERP_RATE * dt;
+    state->car.wheels[1].steering_angle += (target_steer - state->car.wheels[1].steering_angle) * STEER_LERP_RATE * dt;
+    state->car.wheels[2].steering_angle = 0.0f;
+    state->car.wheels[3].steering_angle = 0.0f;
 
     // wheel terrain sampling at new positions
-    const float s = std::sin(state->car_heading);
-    const float c = std::cos(state->car_heading);
+    const float s = std::sin(state->car.heading);
+    const float c = std::cos(state->car.heading);
     float h[4];
     float avg_h = 0.0f;
     for (int i = 0; i < 4; i++) {
-        const Vector3 off = state->wheels[i].local_offset;
-        const float wx = state->car_pos.x + (off.x * c + off.z * s);
-        const float wz = state->car_pos.z + (-off.x * s + off.z * c);
+        const Vector3 off = state->car.wheels[i].local_offset;
+        const float wx = state->car.pos.x + (off.x * c + off.z * s);
+        const float wz = state->car.pos.z + (-off.x * s + off.z * c);
         h[i] = get_terrain_height(wx, wz);
-        state->wheel_heights[i] = h[i];
+        state->car.wheel_heights[i] = h[i];
         avg_h += h[i];
     }
     avg_h *= 0.25f;
@@ -113,9 +113,9 @@ void update_physics_mut(GameState *state) {
     //
 
     float target_y = avg_h + 0.5f;
-    if (state->car_pos.y < target_y)
-        state->car_pos.y = target_y;
-    state->car_pos.y += (target_y - state->car_pos.y) * 20.0f * dt;
+    if (state->car.pos.y < target_y)
+        state->car.pos.y = target_y;
+    state->car.pos.y += (target_y - state->car.pos.y) * 20.0f * dt;
 
     // body pitch and roll
     const float front_h = (h[0] + h[1]) * 0.5f;
@@ -126,8 +126,8 @@ void update_physics_mut(GameState *state) {
     const float target_pitch = std::atan2(back_h - front_h, 3.0f);
     const float target_roll = std::atan2(right_h - left_h, 2.0f);
 
-    state->car_pitch += (target_pitch - state->car_pitch) * 15.0f * dt;
-    state->car_roll += (target_roll - state->car_roll) * 15.0f * dt;
+    state->car.pitch += (target_pitch - state->car.pitch) * 15.0f * dt;
+    state->car.roll += (target_roll - state->car.roll) * 15.0f * dt;
 }
 
 //
@@ -149,8 +149,8 @@ void update_terrain_mut(GameState *state) {
     float chunk_world_size = (GRID_SIZE - 1) * TILE_SIZE;
     state->chunk_size = chunk_world_size;
 
-    int center_cx = (int)std::floor(state->car_pos.x / chunk_world_size);
-    int center_cz = (int)std::floor(state->car_pos.z / chunk_world_size);
+    int center_cx = (int)std::floor(state->car.pos.x / chunk_world_size);
+    int center_cz = (int)std::floor(state->car.pos.z / chunk_world_size);
 
     // 5x5 Grid (radius 2)
     int render_radius = 2; // -2 to +2
@@ -178,7 +178,7 @@ void update_terrain_mut(GameState *state) {
                 float ox = (float)target_cx * chunk_world_size;
                 float oz = (float)target_cz * chunk_world_size;
 
-                Mesh mesh = generate_terrain_mesh_data(ox, oz, state->dense_road_points);
+                Mesh mesh = generate_terrain_mesh_data(ox, oz, state->road.dense_points);
                 UploadMesh(&mesh, false);
 
                 Model model = LoadModelFromMesh(mesh);
@@ -196,7 +196,7 @@ void update_terrain_mut(GameState *state) {
 
 void log_state(const GameState *state, std::int32_t /*frame*/) {
     assert(state != nullptr);
-    std::printf("CAR_POS:%.2f %.2f %.2f | SPEED:%.2f | HEADING:%.2f | PITCH:%.2f | ROLL:%.2f | WHEEL_STEER:%.2f\n", state->car_pos.x, state->car_pos.y, state->car_pos.z, state->car_speed, state->car_heading, state->car_pitch, state->car_roll, state->wheels[0].steering_angle);
+    std::printf("CAR_POS:%.2f %.2f %.2f | SPEED:%.2f | HEADING:%.2f | PITCH:%.2f | ROLL:%.2f | WHEEL_STEER:%.2f\n", state->car.pos.x, state->car.pos.y, state->car.pos.z, state->car.speed, state->car.heading, state->car.pitch, state->car.roll, state->car.wheels[0].steering_angle);
 }
 
 //
@@ -209,19 +209,19 @@ void update_camera_mut(GameState *state) {
 
     // update camera to follow car (chase cam)
     Vector3 target_cam_pos;
-    target_cam_pos.x = state->car_pos.x - std::sin(state->car_heading) * 15.0f;
-    target_cam_pos.z = state->car_pos.z - std::cos(state->car_heading) * 15.0f;
-    target_cam_pos.y = state->car_pos.y + 8.0f;
+    target_cam_pos.x = state->car.pos.x - std::sin(state->car.heading) * 15.0f;
+    target_cam_pos.z = state->car.pos.z - std::cos(state->car.heading) * 15.0f;
+    target_cam_pos.y = state->car.pos.y + 8.0f;
 
     // smooth follow
-    state->camera.position = Vector3Lerp(state->camera.position, target_cam_pos, dt * 3.0f);
+    state->camera.camera.position = Vector3Lerp(state->camera.camera.position, target_cam_pos, dt * 3.0f);
 
     // check terrain collision for camera
-    float cam_terrain_h = get_terrain_height(state->camera.position.x, state->camera.position.z);
-    if (state->camera.position.y < cam_terrain_h + 2.0f) {
-        state->camera.position.y = cam_terrain_h + 2.0f;
+    float cam_terrain_h = get_terrain_height(state->camera.camera.position.x, state->camera.camera.position.z);
+    if (state->camera.camera.position.y < cam_terrain_h + 2.0f) {
+        state->camera.camera.position.y = cam_terrain_h + 2.0f;
     }
-    state->camera.target = state->car_pos;
+    state->camera.camera.target = state->car.pos;
 }
 
 void draw_frame(const GameState *state) {
@@ -229,7 +229,7 @@ void draw_frame(const GameState *state) {
     BeginDrawing();
     ClearBackground(SKYBLUE);
 
-    BeginMode3D(state->camera);
+    BeginMode3D(state->camera.camera);
 
     // Draw all chunks
     for (const auto &chunk : state->terrain_chunks) {
@@ -246,12 +246,12 @@ void draw_frame(const GameState *state) {
     //
 
     rlPushMatrix();
-    rlTranslatef(state->car_pos.x, state->car_pos.y, state->car_pos.z);
+    rlTranslatef(state->car.pos.x, state->car.pos.y, state->car.pos.z);
 
     // car body
-    rlRotatef(state->car_heading * RAD2DEG, 0.0f, 1.0f, 0.0f);
-    rlRotatef(state->car_pitch * RAD2DEG, 1.0f, 0.0f, 0.0f);
-    rlRotatef(state->car_roll * RAD2DEG, 0.0f, 0.0f, 1.0f);
+    rlRotatef(state->car.heading * RAD2DEG, 0.0f, 1.0f, 0.0f);
+    rlRotatef(state->car.pitch * RAD2DEG, 1.0f, 0.0f, 0.0f);
+    rlRotatef(state->car.roll * RAD2DEG, 0.0f, 0.0f, 1.0f);
 
     // simple box car
     DrawCube({0.0f, 0.5f, 0.0f}, 2.0f, 1.0f, 4.0f, RED);
@@ -260,11 +260,11 @@ void draw_frame(const GameState *state) {
     // wheels
     for (int i = 0; i < 4; i++) {
         rlPushMatrix();
-        rlTranslatef(state->wheels[i].local_offset.x, state->wheels[i].local_offset.y, state->wheels[i].local_offset.z);
+        rlTranslatef(state->car.wheels[i].local_offset.x, state->car.wheels[i].local_offset.y, state->car.wheels[i].local_offset.z);
 
         // steering
         if (i < 2) {
-            rlRotatef(state->wheels[i].steering_angle * RAD2DEG, 0.0f, 1.0f, 0.0f);
+            rlRotatef(state->car.wheels[i].steering_angle * RAD2DEG, 0.0f, 1.0f, 0.0f);
         }
 
         Vector3 wheel_start = {-0.1f, 0.0f, 0.0f};
@@ -279,11 +279,11 @@ void draw_frame(const GameState *state) {
 
     // game stats
     char pos_text[64];
-    std::snprintf(pos_text, sizeof(pos_text), "X: %.2f Y: %.2f Z: %.2f | Chunks: %zu", state->car_pos.x, state->car_pos.y, state->car_pos.z, state->terrain_chunks.size());
+    std::snprintf(pos_text, sizeof(pos_text), "X: %.2f Y: %.2f Z: %.2f | Chunks: %zu", state->car.pos.x, state->car.pos.y, state->car.pos.z, state->terrain_chunks.size());
 
     // draw speed on screen
     char speed_text[64];
-    std::snprintf(speed_text, sizeof(speed_text), "SPEED: %.2f", state->car_speed);
+    std::snprintf(speed_text, sizeof(speed_text), "SPEED: %.2f", state->car.speed);
     DrawText(speed_text, 10, 40, 20, WHITE);
     DrawText(pos_text, 10, 60, 20, LIGHTGRAY); // Show Stats
 
@@ -311,10 +311,10 @@ Vector3 generate_next_road_point_mut(GameState *state) {
     const float step_size = 20.0f;
 
     // use stored state for continuous generation
-    float x = state->road_gen_x;
-    float z = state->road_gen_z;
-    float angle = state->road_gen_angle;
-    std::int32_t segment_index = state->road_gen_next_segment;
+    float x = state->road.gen_x;
+    float z = state->road.gen_z;
+    float angle = state->road.gen_angle;
+    std::int32_t segment_index = state->road.gen_next_segment;
 
     // advance position
     if (segment_index > 0) {
@@ -327,10 +327,10 @@ Vector3 generate_next_road_point_mut(GameState *state) {
     angle += noise * 0.2f;
 
     // update state for next call
-    state->road_gen_x = x;
-    state->road_gen_z = z;
-    state->road_gen_angle = angle;
-    state->road_gen_next_segment = segment_index + 1;
+    state->road.gen_x = x;
+    state->road.gen_z = z;
+    state->road.gen_angle = angle;
+    state->road.gen_next_segment = segment_index + 1;
 
     float y = get_terrain_height(x, z);
     return {x, y, z};
@@ -338,15 +338,15 @@ Vector3 generate_next_road_point_mut(GameState *state) {
 
 void update_road_mut(GameState *state) {
     assert(state != nullptr);
-    if (!state->road_initialized) {
+    if (!state->road.initialized) {
         return;
     }
 
     // find closest road point to car
     int closest_idx = 0;
     float min_dist_sq = 1e9f;
-    for (size_t i = 0; i < state->road_points.size(); i++) {
-        Vector3 to_car = Vector3Subtract(state->car_pos, state->road_points[i]);
+    for (size_t i = 0; i < state->road.points.size(); i++) {
+        Vector3 to_car = Vector3Subtract(state->car.pos, state->road.points[i]);
         float dist_sq = to_car.x * to_car.x + to_car.z * to_car.z; // ignore Y
         if (dist_sq < min_dist_sq) {
             min_dist_sq = dist_sq;
@@ -355,13 +355,13 @@ void update_road_mut(GameState *state) {
     }
 
     // generate new points if we're near the end
-    int points_ahead = (int)state->road_points.size() - closest_idx;
+    int points_ahead = (int)state->road.points.size() - closest_idx;
     const int min_points_ahead = 64;
 
     if (points_ahead < min_points_ahead) {
         int to_generate = min_points_ahead - points_ahead;
         for (int i = 0; i < to_generate; i++) {
-            state->road_points.push_back(generate_next_road_point_mut(state));
+            state->road.points.push_back(generate_next_road_point_mut(state));
         }
 
         // Prune old points to prevent infinite growth and lag
@@ -369,11 +369,11 @@ void update_road_mut(GameState *state) {
         const int keep_behind = 32;
         if (closest_idx > keep_behind + 16) {
             int prune_count = closest_idx - keep_behind;
-            state->road_points.erase(state->road_points.begin(), state->road_points.begin() + prune_count);
+            state->road.points.erase(state->road.points.begin(), state->road.points.begin() + prune_count);
         }
 
         // regenerate dense points
-        state->dense_road_points = generate_road_path(state->road_points);
+        state->road.dense_points = generate_road_path(state->road.points);
 
         // Chunks intersecting the new road might need update,
         // but for now, we assume simple generation is enough as road is static in old chunks.
@@ -382,27 +382,27 @@ void update_road_mut(GameState *state) {
 
 void init_road_mut(GameState *state) {
     assert(state != nullptr);
-    if (state->road_initialized) {
+    if (state->road.initialized) {
         return;
     }
 
     // initialize generation state
-    state->road_gen_x = 0.0f;
-    state->road_gen_z = 0.0f;
-    state->road_gen_angle = 0.0f;
-    state->road_gen_next_segment = 0;
+    state->road.gen_x = 0.0f;
+    state->road.gen_z = 0.0f;
+    state->road.gen_angle = 0.0f;
+    state->road.gen_next_segment = 0;
 
     // generate initial road ahead
-    state->road_points.clear();
-    state->road_points.reserve(128); // reserve space to avoid reallocations
+    state->road.points.clear();
+    state->road.points.reserve(128); // reserve space to avoid reallocations
 
     for (int i = 0; i < 128; i++) {
-        state->road_points.push_back(generate_next_road_point_mut(state));
+        state->road.points.push_back(generate_next_road_point_mut(state));
     }
 
-    state->road_initialized = true;
-    state->dense_road_points = generate_road_path(state->road_points);
-    std::printf("[ROAD] Generated initial %zu points\n", state->road_points.size());
+    state->road.initialized = true;
+    state->road.dense_points = generate_road_path(state->road.points);
+    std::printf("[ROAD] Generated initial %zu points\n", state->road.points.size());
 }
 
 std::int32_t main() {
@@ -414,16 +414,16 @@ std::int32_t main() {
     init_road_mut(&state);
 
     // Initial car placement on road
-    if (!state.road_points.empty()) {
-        Vector3 start = state.road_points[0];
-        Vector3 next = state.road_points[1];
-        state.car_pos = start;
-        state.car_pos.y = get_terrain_height(start.x, start.z) + 2.0f; // Initial drop height
+    if (!state.road.points.empty()) {
+        Vector3 start = state.road.points[0];
+        Vector3 next = state.road.points[1];
+        state.car.pos = start;
+        state.car.pos.y = get_terrain_height(start.x, start.z) + 2.0f; // Initial drop height
 
         // Face the road direction
         float dx = next.x - start.x;
         float dz = next.z - start.z;
-        state.car_heading = std::atan2(dx, dz);
+        state.car.heading = std::atan2(dx, dz);
     }
 
     // Force initial terrain update for chunks

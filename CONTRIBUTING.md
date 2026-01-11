@@ -1,28 +1,22 @@
 Based on tigerstyle.
 
-Workflow: Write specification. Implement as small, independent tasks. Write tests. Refactor.
+Workflow: Write specification. Chunk into small tasks. Implement. Write tests. Refactor.
 
 # (1) Safety
 
+- No Undefined Behavior. Treat all compiler warnings as errors and resolve immediately.
 - Assert Aggressively: Assert preconditions, postconditions, invariants, every return value.
 - Bounded Execution: Set fixed upper limits on all loops.
-- No Undefined Behavior. Treat all compiler warnings as errors.
-
-- Simple flow: Avoid complex control flow (e.g., goto, nested if-else).
 - Controlled Memory: Strongly prefer static allocation over dynamic allocation. If dynamic allocation is necessary prefer arenas or memory pools.
-- Testing:
-      - Mandatory Unit Tests: Every new feature must be accompanied by unit tests.
-      - Coverage: The more tests, the better. Cover edge cases, boundary conditions and failure modes.
-
+- Simple flow: Avoid complex control flow (e.g., goto, nested if-else).
 - Explicit Mutation: Avoid manipulating function arguments or causing side effects. If copying has an extremely high memory cost, mutation is allowed but the function must be named with a suffix (`_mut`) and mutation must be obvious in the naming (e.g., `out_result`).
-
+- Testing: Achieve 100% coverage. Cover edge cases, boundary conditions and failure modes.
 
 # (2) Performance
 
 - Follow Data-Oriented Design (DoD) principles
+      - Struct of Arrays (SoA): Prefer SoA over Array of Structs (AoS) for heavy computation to maximize SIMD usage.
 - Design for Hardware: Organize data to match how the hardware reads it (cache lines).
-- Struct of Arrays (SoA): Prefer SoA over Array of Structs (AoS) for heavy computation to maximize SIMD usage.
-- Data Alignment: Ensure critical data is aligned (e.g., 64 bytes) for SIMD efficiency. Assert alignment on access.
 - Batch Processing: Write functions that transform arrays of data rather than single elements (data transformation > object interaction).
 - Existence-based Processing: Filter data *before* processing so loops run on contiguous, valid data (avoid `if (obj->active)` inside hot loops).
 
