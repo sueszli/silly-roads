@@ -223,10 +223,28 @@ Mesh generate_mesh_data(float offset_x, float offset_z) {
 
 } // namespace
 
-void update(GameState &state) {
-    float chunk_world_size = (GRID_SIZE - 1) * TILE_SIZE;
-    state.chunk_size = chunk_world_size;
+void init(GameState &state) {
+    state.texture = load_texture();
+    state.chunk_size = (GRID_SIZE - 1) * TILE_SIZE;
 
+    // Initial car placement on road
+    float start_z = 0.0f;
+    float start_x = get_road_offset(start_z);
+
+    state.car.pos = {start_x, 0.0f, start_z};
+    state.car.pos.y = get_height(start_x, start_z) + 2.0f;
+
+    // Face the road direction (approximate derivative)
+    float look_ahead_z = start_z + 1.0f;
+    float look_ahead_x = get_road_offset(look_ahead_z);
+
+    float dx = look_ahead_x - start_x;
+    float dz = look_ahead_z - start_z;
+    state.car.heading = std::atan2(dx, dz);
+}
+
+void update(GameState &state) {
+    float chunk_world_size = state.chunk_size;
     int center_cx = (int)std::floor(state.car.pos.x / chunk_world_size);
     int center_cz = (int)std::floor(state.car.pos.z / chunk_world_size);
 
@@ -268,30 +286,9 @@ void update(GameState &state) {
     }
 }
 
-void init(GameState &state) {
-    state.texture = load_texture();
-
-    // Initial car placement on road
-    float start_z = 0.0f;
-    float start_x = get_road_offset(start_z);
-
-    state.car.pos = {start_x, 0.0f, start_z};
-    state.car.pos.y = get_height(start_x, start_z) + 2.0f;
-
-    // Face the road direction (approximate derivative)
-    float look_ahead_z = start_z + 1.0f;
-    float look_ahead_x = get_road_offset(look_ahead_z);
-
-    float dx = look_ahead_x - start_x;
-    float dz = look_ahead_z - start_z;
-    state.car.heading = std::atan2(dx, dz);
-
-    update(state);
-}
-
 void draw(const GameState &state) {
     for (const auto &chunk : state.terrain_chunks) {
-        float chunk_world_size = (GRID_SIZE - 1) * TILE_SIZE;
+        float chunk_world_size = state.chunk_size;
         float ox = (float)chunk.cx * chunk_world_size;
         float oz = (float)chunk.cz * chunk_world_size;
         Vector3 pos = {ox, 0.0f, oz};
