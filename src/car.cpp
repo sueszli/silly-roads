@@ -149,8 +149,9 @@ void draw_car() {
     for (int i = 0; i < 4; i++) {
         rlPushMatrix();
         rlTranslatef(car.wheels[i].local_offset.x, car.wheels[i].local_offset.y, car.wheels[i].local_offset.z);
-        if (i < 2)
+        if (i < 2) {
             rlRotatef(car.wheels[i].steering_angle * RAD2DEG, 0.0f, 1.0f, 0.0f);
+        }
         DrawCylinderEx({-0.1f, 0.0f, 0.0f}, {0.1f, 0.0f, 0.0f}, 0.3f, 0.3f, 16, DARKGRAY);
         rlPopMatrix();
     }

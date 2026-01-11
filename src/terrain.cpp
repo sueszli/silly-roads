@@ -131,50 +131,48 @@ Mesh generate_chunk_mesh(float offset_x, float offset_z) {
     mesh.colors = static_cast<unsigned char *>(MemAlloc(static_cast<unsigned int>(static_cast<size_t>(mesh.vertexCount) * 4 * sizeof(unsigned char))));
     mesh.indices = static_cast<unsigned short *>(MemAlloc(static_cast<unsigned int>(static_cast<size_t>(mesh.triangleCount) * 3 * sizeof(unsigned short))));
 
-    std::array<int, GRID_SIZE * GRID_SIZE> indices;
-    std::iota(indices.begin(), indices.end(), 0);
-    std::for_each(indices.begin(), indices.end(), [&](int i) {
-        const int x = i % GRID_SIZE;
-        const int z = i / GRID_SIZE;
-        const float wx = offset_x + x * TILE_SIZE;
-        const float wz = offset_z + z * TILE_SIZE;
-        const float wy = Terrain::get_height(wx, wz);
-        const Vector3 n = get_normal(wx, wz);
-        const Color col = get_color(x, z, wx, wz);
+    for (int z = 0; z < GRID_SIZE; ++z) {
+        for (int x = 0; x < GRID_SIZE; ++x) {
+            const int i = z * GRID_SIZE + x;
+            const float wx = offset_x + x * TILE_SIZE;
+            const float wz = offset_z + z * TILE_SIZE;
+            const float wy = Terrain::get_height(wx, wz);
+            const Vector3 n = get_normal(wx, wz);
+            const Color col = get_color(x, z, wx, wz);
 
-        mesh.vertices[i * 3] = static_cast<float>(x) * TILE_SIZE;
-        mesh.vertices[i * 3 + 1] = wy;
-        mesh.vertices[i * 3 + 2] = static_cast<float>(z) * TILE_SIZE;
+            mesh.vertices[i * 3] = static_cast<float>(x) * TILE_SIZE;
+            mesh.vertices[i * 3 + 1] = wy;
+            mesh.vertices[i * 3 + 2] = static_cast<float>(z) * TILE_SIZE;
 
-        mesh.normals[i * 3] = n.x;
-        mesh.normals[i * 3 + 1] = n.y;
-        mesh.normals[i * 3 + 2] = n.z;
+            mesh.normals[i * 3] = n.x;
+            mesh.normals[i * 3 + 1] = n.y;
+            mesh.normals[i * 3 + 2] = n.z;
 
-        mesh.texcoords[i * 2] = 0.0f;
-        mesh.texcoords[i * 2 + 1] = 0.0f;
+            mesh.texcoords[i * 2] = 0.0f;
+            mesh.texcoords[i * 2 + 1] = 0.0f;
 
-        mesh.colors[i * 4] = col.r;
-        mesh.colors[i * 4 + 1] = col.g;
-        mesh.colors[i * 4 + 2] = col.b;
-        mesh.colors[i * 4 + 3] = col.a;
-    });
+            mesh.colors[i * 4] = col.r;
+            mesh.colors[i * 4 + 1] = col.g;
+            mesh.colors[i * 4 + 2] = col.b;
+            mesh.colors[i * 4 + 3] = col.a;
+        }
+    }
 
     constexpr int INDEX_GRID = GRID_SIZE - 1;
-    std::array<int, INDEX_GRID * INDEX_GRID> index_indices;
-    std::iota(index_indices.begin(), index_indices.end(), 0);
-    std::for_each(index_indices.begin(), index_indices.end(), [&](int i) {
-        const int x = i % INDEX_GRID;
-        const int z = i / INDEX_GRID;
-        const auto tl = static_cast<unsigned short>(z * GRID_SIZE + x);
-        const auto bl = static_cast<unsigned short>((z + 1) * GRID_SIZE + x);
-        const int idx = i * 6;
-        mesh.indices[idx] = tl;
-        mesh.indices[idx + 1] = bl;
-        mesh.indices[idx + 2] = tl + 1;
-        mesh.indices[idx + 3] = tl + 1;
-        mesh.indices[idx + 4] = bl;
-        mesh.indices[idx + 5] = bl + 1;
-    });
+    for (int z = 0; z < INDEX_GRID; ++z) {
+        for (int x = 0; x < INDEX_GRID; ++x) {
+            const int i = z * INDEX_GRID + x;
+            const auto tl = static_cast<unsigned short>(z * GRID_SIZE + x);
+            const auto bl = static_cast<unsigned short>((z + 1) * GRID_SIZE + x);
+            const int idx = i * 6;
+            mesh.indices[idx] = tl;
+            mesh.indices[idx + 1] = bl;
+            mesh.indices[idx + 2] = tl + 1;
+            mesh.indices[idx + 3] = tl + 1;
+            mesh.indices[idx + 4] = bl;
+            mesh.indices[idx + 5] = bl + 1;
+        }
+    }
     return mesh;
 }
 
