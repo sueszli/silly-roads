@@ -1,9 +1,6 @@
 #pragma once
 
-struct GameState;
 #include "game_state.hpp"
-#include "raylib.h"
-#include <cstdint>
 #include <vector>
 
 namespace Terrain {
