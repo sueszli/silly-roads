@@ -21,25 +21,25 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: (1) checkout
         uses: actions/checkout@v4
 
-      - name: Setup Emscripten
+      - name: (2) setup emscripten
         uses: mymindstorm/setup-emsdk@v14
 
-      - name: Build WASM
+      - name: (3) build wasm
         run: |
           emcmake cmake -B build/wasm -S . -DPLATFORM=Web -DCMAKE_BUILD_TYPE=Release -DDISABLE_ASAN=ON -DDISABLE_UBSAN=ON -DCMAKE_EXECUTABLE_SUFFIX='.html' -DCMAKE_EXECUTABLE_SUFFIX_CXX='.html' -DCMAKE_EXE_LINKER_FLAGS='-sASYNCIFY -sUSE_GLFW=3 -sGL_ENABLE_GET_PROC_ADDRESS'
           cmake --build build/wasm
 
-      - name: Setup Pages
+      - name: (4) setup pages
         uses: actions/configure-pages@v5
 
-      - name: Upload artifact
+      - name: (5) upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: 'build/wasm'
 
-      - name: Deploy to GitHub Pages
+      - name: (6) deploy to github pages
         id: deployment
         uses: actions/deploy-pages@v4
