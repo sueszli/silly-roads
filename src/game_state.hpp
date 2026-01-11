@@ -19,8 +19,8 @@ struct Car {
     Vector3 vel = {0.0f, 0.0f, 0.0f};
     float heading = 0.0f;
     float speed = 0.0f;
-    float pitch = 0.0f; // rotation around X-axis (front/back tilt)
-    float roll = 0.0f;  // rotation around Z-axis (left/right tilt)
+    float pitch = 0.0f; // rotation around x-axis (front/back tilt)
+    float roll = 0.0f;  // rotation around z-axis (left/right tilt)
     WheelState wheels[4] = {
         {{-1.0f, -0.3f, 1.5f}, 0.0f, 0.0f},  // front-left
         {{1.0f, -0.3f, 1.5f}, 0.0f, 0.0f},   // front-right

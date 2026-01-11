@@ -10,7 +10,7 @@
 #include <cstdio>
 #include <cstdlib>
 
-// Physics Constants
+// physics constants
 constexpr float PHYS_ACCEL = 200.0f;     // acceleration per second
 constexpr float PHYS_BRAKE = 400.0f;     // braking/reverse force
 constexpr float PHYS_MAX_SPEED = 120.0f; // max speed
@@ -20,14 +20,14 @@ constexpr float PHYS_TURN_RATE = 2.0f;   // turn rate in rad/s
 CarControls read_inputs() {
     CarControls inputs = {};
 
-    // A/D steering
+    // a/d steering
     if (IsKeyDown(KEY_D)) {
         inputs.steer = 1.0f;
     } else if (IsKeyDown(KEY_A)) {
         inputs.steer = -1.0f;
     }
 
-    // W/S throttle
+    // w/s throttle
     if (IsKeyDown(KEY_W)) {
         inputs.throttle = 1.0f;
     } else if (IsKeyDown(KEY_S)) {
@@ -40,13 +40,13 @@ CarControls read_inputs() {
 void update_physics(GameState &state, const CarControls &inputs, float dt) {
     Car &car = state.car;
 
-    // Steering
+    // steering
     if (std::abs(car.speed) > 0.5f) {
         float turn_factor = (car.speed > 0.0f) ? 1.0f : -1.0f; // reverse steering when going backward
         car.heading -= inputs.steer * PHYS_TURN_RATE * dt * turn_factor;
     }
 
-    // Acceleration / Braking
+    // acceleration / braking
     bool has_input = false;
     if (inputs.throttle > 0.0f) {
         car.speed += PHYS_ACCEL * inputs.throttle * dt;
@@ -96,10 +96,10 @@ void update_physics(GameState &state, const CarControls &inputs, float dt) {
         const float wx = car.pos.x + (off.x * c + off.z * s);
         const float wz = car.pos.z + (-off.x * s + off.z * c);
 
-        // Using global get_terrain_height from terrain.hpp
+        // using global get_terrain_height from terrain.hpp
         h[i] = Terrain::get_height(wx, wz);
 
-        // car.wheel_heights[i] = h[i]; // Removed caching
+        // car.wheel_heights[i] = h[i]; // removed caching
         avg_h += h[i];
     }
     avg_h *= 0.25f;
@@ -185,7 +185,7 @@ void draw_scene(const GameState &state) {
 
     BeginMode3D(state.camera.camera);
 
-    // Draw all chunks
+    // draw all chunks
     Terrain::draw();
 
     // car rendering
@@ -201,7 +201,7 @@ void draw_scene(const GameState &state) {
     char speed_text[64];
     std::snprintf(speed_text, sizeof(speed_text), "SPEED: %.2f", state.car.speed);
     DrawText(speed_text, 10, 40, 20, WHITE);
-    DrawText(pos_text, 10, 60, 20, LIGHTGRAY); // Show Stats
+    DrawText(pos_text, 10, 60, 20, LIGHTGRAY); // show stats
 
     EndDrawing();
 }
@@ -217,7 +217,7 @@ std::int32_t main() {
         float dt = GetFrameTime();
         dt = std::min(dt, 0.1f);
 
-        // Update
+        // update
         CarControls controls = read_inputs();
 
         Terrain::update(state);
@@ -225,11 +225,11 @@ std::int32_t main() {
         update_physics(state, controls, dt);
         update_camera(state, dt);
 
-        // Draw
+        // draw
         draw_scene(state);
     }
 
-    // Cleanup
+    // cleanup
     Terrain::cleanup();
     CloseWindow();
 

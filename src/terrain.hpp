@@ -20,4 +20,4 @@ void draw();
 /** cleans up terrain resources */
 void cleanup();
 
-} // namespace Terrain
+} // namespace terrain

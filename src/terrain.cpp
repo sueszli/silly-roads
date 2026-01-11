@@ -19,7 +19,7 @@ constexpr int32_t GRID_SIZE = 128;
 constexpr float TILE_SIZE = 1.0f;
 constexpr float CHUNK_SIZE = (GRID_SIZE - 1) * TILE_SIZE;
 
-// Internal State
+// internal state
 struct TerrainChunk {
     int cx; // chunk grid x coordinate
     int cz; // chunk grid z coordinate
@@ -32,9 +32,9 @@ struct TerrainState {
     float chunk_size = 0.0f;
 } internal_state;
 
-// 3D Perlin Noise
+// 3d perlin noise
 float sample_perlin_noise(float x, float y, float z) {
-    // Helper lambdas
+    // helper lambdas
     const auto get_permutation = []() {
         std::array<int32_t, 512> p;
         std::iota(p.begin(), p.begin() + 256, 0);
@@ -64,7 +64,7 @@ float sample_perlin_noise(float x, float y, float z) {
 
     const float u = fade(x), v = fade(y), w = fade(z);
 
-    // Cast to size_t for array indexing
+    // cast to size_t for array indexing
     const size_t idx_X = static_cast<size_t>(X);
     const size_t idx_Y = static_cast<size_t>(Y);
     const size_t idx_Z = static_cast<size_t>(Z);
@@ -81,7 +81,7 @@ float sample_perlin_noise(float x, float y, float z) {
 
 float get_road_center_x(float z) { return sample_perlin_noise(0.0f, 42.0f, z * ROAD_NOISE_SCALE) * ROAD_AMPLITUDE; }
 
-// --- Mesh Generation Helpers ---
+// --- mesh generation helpers ---
 Vector3 calculate_normal(float x, float z) {
     const auto h = [](float x, float z) { return sample_perlin_noise(x * NOISE_SCALE, 0.0f, z * NOISE_SCALE) * TERRAIN_HEIGHT_SCALE; };
     const float step = 0.1f;
@@ -102,7 +102,7 @@ Mesh generate_chunk_mesh(float offset_x, float offset_z) {
     mesh.colors = static_cast<unsigned char *>(MemAlloc(static_cast<unsigned int>(static_cast<size_t>(mesh.vertexCount) * 4 * sizeof(unsigned char))));
     mesh.indices = static_cast<unsigned short *>(MemAlloc(static_cast<unsigned int>(static_cast<size_t>(mesh.triangleCount) * 3 * sizeof(unsigned short))));
 
-    constexpr Color COLORS[] = {DARKGREEN, GREEN, BROWN}; // Dark, Light, Road
+    constexpr Color COLORS[] = {DARKGREEN, GREEN, BROWN}; // dark, light, road
 
     for (int z = 0; z < GRID_SIZE; ++z) {
         for (int x = 0; x < GRID_SIZE; ++x) {
@@ -110,7 +110,7 @@ Mesh generate_chunk_mesh(float offset_x, float offset_z) {
             const float wx = offset_x + x * TILE_SIZE;
             const float wz = offset_z + z * TILE_SIZE;
 
-            // Geometry
+            // geometry
             const float wy = Terrain::get_height(wx, wz);
             const Vector3 n = calculate_normal(wx, wz);
 
@@ -125,13 +125,13 @@ Mesh generate_chunk_mesh(float offset_x, float offset_z) {
             mesh.texcoords[i * 2] = 0.0f;
             mesh.texcoords[i * 2 + 1] = 0.0f;
 
-            // Color
+            // color
             float dist = std::abs(wx - get_road_center_x(wz));
             Color col = ((x + z) % 2 == 0) ? COLORS[0] : COLORS[1];
-            if (dist < 6.0f) { // Road width
+            if (dist < 6.0f) { // road width
                 if (dist < 4.0f)
                     col = COLORS[2];
-                else { // Fade
+                else { // fade
                     float t = (dist - 4.0f) / 2.0f;
                     col = ColorLerp(COLORS[2], col, t);
                 }
@@ -172,12 +172,12 @@ void init(GameState &state) {
     UnloadImage(img);
     internal_state.chunk_size = CHUNK_SIZE;
 
-    // Reset Car
+    // reset car
     float start_z = 0.0f;
-    float start_x = get_road_center_x(start_z) + 1.5f; // Slightly offset
+    float start_x = get_road_center_x(start_z) + 1.5f; // slightly offset
     state.car.pos = {start_x, get_height(start_x, start_z) + 2.0f, start_z};
 
-    // Align with road
+    // align with road
     float look_ahead_x = get_road_center_x(start_z + 1.0f) + 1.5f;
     state.car.heading = std::atan2(look_ahead_x - start_x, 1.0f);
 }
@@ -186,7 +186,7 @@ void update(const GameState &state) {
     const int cx = (int)std::floor(state.car.pos.x / CHUNK_SIZE);
     const int cz = (int)std::floor(state.car.pos.z / CHUNK_SIZE);
 
-    // Unload distant chunks
+    // unload distant chunks
     std::erase_if(internal_state.chunks, [&](const TerrainChunk &c) {
         bool keep = std::abs(c.cx - cx) <= 2 && std::abs(c.cz - cz) <= 2;
         if (!keep)
@@ -194,7 +194,7 @@ void update(const GameState &state) {
         return !keep;
     });
 
-    // Load new chunks
+    // load new chunks
     for (int z = -2; z <= 2; ++z) {
         for (int x = -2; x <= 2; ++x) {
             if (std::none_of(internal_state.chunks.begin(), internal_state.chunks.end(), [&](const auto &c) { return c.cx == cx + x && c.cz == cz + z; })) {
@@ -222,4 +222,4 @@ void cleanup() {
     UnloadTexture(internal_state.texture);
 }
 
-} // namespace Terrain
+} // namespace terrain
