@@ -40,10 +40,6 @@ struct CarState {
     CarControls controls = {};
 } internal_state;
 
-} // namespace
-
-namespace Car {
-
 void read_input() {
     internal_state.controls = {};
     if (IsKeyDown(KEY_D)) {
@@ -58,7 +54,7 @@ void read_input() {
     }
 }
 
-void update(float dt) {
+void update_physics(float dt) {
     auto &car = internal_state;
     const auto &inputs = car.controls;
 
@@ -128,7 +124,7 @@ void update(float dt) {
     car.roll += (std::atan2(right_h - left_h, 2.0f) - car.roll) * 15.0f * dt;
 }
 
-void draw() {
+void draw_car() {
     const auto &car = internal_state;
 
     rlPushMatrix();
@@ -151,6 +147,10 @@ void draw() {
     rlPopMatrix();
 }
 
+} // namespace
+
+namespace Car {
+
 void init(const Vector3 &pos, float heading) {
     internal_state.pos = pos;
     internal_state.heading = heading;
@@ -158,6 +158,13 @@ void init(const Vector3 &pos, float heading) {
     internal_state.speed = 0.0f;
     internal_state.pitch = 0.0f;
     internal_state.roll = 0.0f;
+}
+
+void update(float dt) {
+    read_input();
+    Terrain::update(internal_state.pos);
+    update_physics(dt);
+    draw_car();
 }
 
 Vector3 get_position() { return internal_state.pos; }
