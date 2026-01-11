@@ -25,7 +25,7 @@ std::int32_t main() {
 
     while (!WindowShouldClose()) {
         float dt = std::min(GetFrameTime(), 0.1f);
-        CameraSystem::update_camera(camera, Car::get_position(), Car::get_heading(), dt);
+        CameraSystem::update(camera, Car::get_position(), Car::get_heading(), dt);
 
         BeginDrawing();
         ClearBackground(SKYBLUE);

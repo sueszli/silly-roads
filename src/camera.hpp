@@ -18,7 +18,7 @@ struct State {
     };
 };
 
-inline void update_camera(State &cam, const Vector3 &car_pos, float car_heading, float dt) {
+inline void update(State &cam, const Vector3 &car_pos, float car_heading, float dt) {
     Vector3 target_cam_pos = {
         car_pos.x - std::sin(car_heading) * 15.0f,
         car_pos.y + 8.0f,
