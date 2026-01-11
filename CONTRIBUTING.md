@@ -1,24 +1,32 @@
 Based on tigerstyle.
 
+Workflow: Write specification. Implement as small, independent tasks. Write tests. Refactor.
+
 # (1) Safety
 
-- Zero Technical Debt: Fix issues immediately. Never rely on future refactoring.
-- Assert Aggressively: Validate inputs, outputs, tensor shapes and invariants in every function.
-- Pair Assertions: Check critical data at multiple points to catch internal inconsistencies.
-- Bounded Execution: Set fixed upper limits on all loops, queues and recursion depth (especially for graph traversal).
-- Fail Fast: Detect unexpected conditions immediately. Crash rather than corrupt state.
-- No Undefined Behavior: Rely on explicit code, not compiler optimizations. Treat all compiler warnings as errors.
-- Controlled Memory:
-    - Strongly prefer static allocation over dynamic allocation.
-    - When dynamic allocation is necessary (e.g., graph construction), use arenas or memory pools*
-    - Enforce strict upper bounds on memory usage.
-    - Assert Allocation: Wrap every arena allocation, `malloc` or resource claim in an assert (e.g., `assert(ptr != NULL)`).
-- Explicit Mutation: Avoid manipulating functio`n `arguments or causing side effects. If copying has an extremely high memory cost, mutation is allowed but the function must be named with a suffix (`_mut`) and mutation must be obvious in the naming (e.g., `out_result`).
+- Assert Aggressively: Assert preconditions, postconditions, invariants, every return value.
+- Bounded Execution: Set fixed upper limits on all loops.
+- No Undefined Behavior. Treat all compiler warnings as errors.
+
+- Simple flow: Avoid complex control flow (e.g., goto, nested if-else).
+- Controlled Memory: Strongly prefer static allocation over dynamic allocation. If dynamic allocation is necessary prefer arenas or memory pools.
 - Testing:
       - Mandatory Unit Tests: Every new feature must be accompanied by unit tests.
       - Coverage: The more tests, the better. Cover edge cases, boundary conditions and failure modes.
 
-# (2) Quality
+- Explicit Mutation: Avoid manipulating function arguments or causing side effects. If copying has an extremely high memory cost, mutation is allowed but the function must be named with a suffix (`_mut`) and mutation must be obvious in the naming (e.g., `out_result`).
+
+
+# (2) Performance
+
+- Follow Data-Oriented Design (DoD) principles
+- Design for Hardware: Organize data to match how the hardware reads it (cache lines).
+- Struct of Arrays (SoA): Prefer SoA over Array of Structs (AoS) for heavy computation to maximize SIMD usage.
+- Data Alignment: Ensure critical data is aligned (e.g., 64 bytes) for SIMD efficiency. Assert alignment on access.
+- Batch Processing: Write functions that transform arrays of data rather than single elements (data transformation > object interaction).
+- Existence-based Processing: Filter data *before* processing so loops run on contiguous, valid data (avoid `if (obj->active)` inside hot loops).
+
+# (3) Experience
 
 - Obvious Code > Clever Code
 - Maximize Locality: Keep related code together. Define things near usage. Minimize variable scope.
@@ -28,15 +36,6 @@ Based on tigerstyle.
 - Decompose Conditionals: Use named variables to simplify complex `if` conditions.
 - Comments: Comments explain *why*, not *what*. Use lowercase single lines. ASCII illustrations are welcome.
 - Functional Style: Prefer pure functions (data in, data out) and immutability for logic.
-
-# (3) Performance
-
-- Follow Data-Oriented Design (DoD) principles
-- Design for Hardware: Organize data to match how the hardware reads it (cache lines).
-- Struct of Arrays (SoA): Prefer SoA over Array of Structs (AoS) for heavy computation to maximize SIMD usage.
-- Data Alignment: Ensure critical data is aligned (e.g., 64 bytes) for SIMD efficiency. Assert alignment on access.
-- Batch Processing: Write functions that transform arrays of data rather than single elements (data transformation > object interaction).
-- Existence-based Processing: Filter data *before* processing so loops run on contiguous, valid data (avoid `if (obj->active)` inside hot loops).
 
 # C++ Specific Notes
 
