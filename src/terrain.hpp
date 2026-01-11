@@ -12,9 +12,12 @@ float get_height(float x, float z);
 void init(GameState &state);
 
 /** updates the terrain system (chunk generation/unloading) */
-void update(GameState &state);
+void update(const GameState &state);
 
 /** draws the terrain chunks */
-void draw(const GameState &state);
+void draw();
+
+/** cleans up terrain resources */
+void cleanup();
 
 } // namespace Terrain

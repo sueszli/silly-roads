@@ -19,24 +19,37 @@ constexpr int32_t GRID_SIZE = 128;
 constexpr float TILE_SIZE = 1.0f;
 constexpr float CHUNK_SIZE = (GRID_SIZE - 1) * TILE_SIZE;
 
-// --- Noise Helpers ---
-std::array<int32_t, 512> get_permutation() {
-    std::array<int32_t, 512> p;
-    std::iota(p.begin(), p.begin() + 256, 0);
-    std::shuffle(p.begin(), p.begin() + 256, std::default_random_engine(42));
-    std::copy(p.begin(), p.begin() + 256, p.begin() + 256);
-    return p;
-}
+// Internal State
+struct TerrainChunk {
+    int cx; // chunk grid x coordinate
+    int cz; // chunk grid z coordinate
+    Model model;
+};
 
-float grad(int32_t hash, float x, float y, float z) {
-    const int32_t h = hash & 15;
-    const float u = h < 8 ? x : y;
-    const float v = h < 4 ? y : h == 12 || h == 14 ? x : z;
-    return ((h & 1) == 0 ? u : -u) + ((h & 2) == 0 ? v : -v);
-}
+struct TerrainState {
+    std::vector<TerrainChunk> chunks;
+    Texture2D texture = {};
+    float chunk_size = 0.0f;
+} internal_state;
 
 // 3D Perlin Noise
-float sample_noise(float x, float y, float z) {
+float sample_perlin_noise(float x, float y, float z) {
+    // Helper lambdas
+    const auto get_permutation = []() {
+        std::array<int32_t, 512> p;
+        std::iota(p.begin(), p.begin() + 256, 0);
+        std::shuffle(p.begin(), p.begin() + 256, std::default_random_engine(42));
+        std::copy(p.begin(), p.begin() + 256, p.begin() + 256);
+        return p;
+    };
+
+    const auto grad = [](int32_t hash, float x, float y, float z) {
+        const int32_t h = hash & 15;
+        const float u = h < 8 ? x : y;
+        const float v = h < 4 ? y : h == 12 || h == 14 ? x : z;
+        return ((h & 1) == 0 ? u : -u) + ((h & 2) == 0 ? v : -v);
+    };
+
     static const auto p = get_permutation();
     const auto fade = [](float t) { return t * t * t * (t * (t * 6 - 15) + 10); };
     const auto lerp = [](float t, float a, float b) { return a + t * (b - a); };
@@ -66,11 +79,11 @@ float sample_noise(float x, float y, float z) {
     return lerp(w, lerp(v, lerp(u, grad(p[AA], x, y, z), grad(p[BA], x - 1, y, z)), lerp(u, grad(p[AB], x, y - 1, z), grad(p[BB], x - 1, y - 1, z))), lerp(v, lerp(u, grad(p[AA + 1], x, y, z - 1), grad(p[BA + 1], x - 1, y, z - 1)), lerp(u, grad(p[AB + 1], x, y - 1, z - 1), grad(p[BB + 1], x - 1, y - 1, z - 1))));
 }
 
-float get_road_center_x(float z) { return sample_noise(0.0f, 42.0f, z * ROAD_NOISE_SCALE) * ROAD_AMPLITUDE; }
+float get_road_center_x(float z) { return sample_perlin_noise(0.0f, 42.0f, z * ROAD_NOISE_SCALE) * ROAD_AMPLITUDE; }
 
 // --- Mesh Generation Helpers ---
 Vector3 calculate_normal(float x, float z) {
-    const auto h = [](float x, float z) { return sample_noise(x * NOISE_SCALE, 0.0f, z * NOISE_SCALE) * TERRAIN_HEIGHT_SCALE; };
+    const auto h = [](float x, float z) { return sample_perlin_noise(x * NOISE_SCALE, 0.0f, z * NOISE_SCALE) * TERRAIN_HEIGHT_SCALE; };
     const float step = 0.1f;
     const float height = h(x, z);
     const Vector3 v1 = {step, h(x + step, z) - height, 0.0f};
@@ -151,13 +164,13 @@ Mesh generate_chunk_mesh(float offset_x, float offset_z) {
 
 namespace Terrain {
 
-float get_height(float x, float z) { return sample_noise(x * NOISE_SCALE, 0.0f, z * NOISE_SCALE) * TERRAIN_HEIGHT_SCALE; }
+float get_height(float x, float z) { return sample_perlin_noise(x * NOISE_SCALE, 0.0f, z * NOISE_SCALE) * TERRAIN_HEIGHT_SCALE; }
 
 void init(GameState &state) {
     Image img = GenImageColor(2, 2, WHITE);
-    state.texture = LoadTextureFromImage(img);
+    internal_state.texture = LoadTextureFromImage(img);
     UnloadImage(img);
-    state.chunk_size = CHUNK_SIZE;
+    internal_state.chunk_size = CHUNK_SIZE;
 
     // Reset Car
     float start_z = 0.0f;
@@ -169,12 +182,12 @@ void init(GameState &state) {
     state.car.heading = std::atan2(look_ahead_x - start_x, 1.0f);
 }
 
-void update(GameState &state) {
+void update(const GameState &state) {
     const int cx = (int)std::floor(state.car.pos.x / CHUNK_SIZE);
     const int cz = (int)std::floor(state.car.pos.z / CHUNK_SIZE);
 
     // Unload distant chunks
-    std::erase_if(state.terrain_chunks, [&](const TerrainChunk &c) {
+    std::erase_if(internal_state.chunks, [&](const TerrainChunk &c) {
         bool keep = std::abs(c.cx - cx) <= 2 && std::abs(c.cz - cz) <= 2;
         if (!keep)
             UnloadModel(c.model);
@@ -184,21 +197,29 @@ void update(GameState &state) {
     // Load new chunks
     for (int z = -2; z <= 2; ++z) {
         for (int x = -2; x <= 2; ++x) {
-            if (std::none_of(state.terrain_chunks.begin(), state.terrain_chunks.end(), [&](const auto &c) { return c.cx == cx + x && c.cz == cz + z; })) {
+            if (std::none_of(internal_state.chunks.begin(), internal_state.chunks.end(), [&](const auto &c) { return c.cx == cx + x && c.cz == cz + z; })) {
                 Mesh mesh = generate_chunk_mesh((cx + x) * CHUNK_SIZE, (cz + z) * CHUNK_SIZE);
                 UploadMesh(&mesh, false);
                 Model model = LoadModelFromMesh(mesh);
-                model.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = state.texture;
-                state.terrain_chunks.push_back({cx + x, cz + z, model});
+                model.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = internal_state.texture;
+                internal_state.chunks.push_back({cx + x, cz + z, model});
             }
         }
     }
 }
 
-void draw(const GameState &state) {
-    for (const auto &chunk : state.terrain_chunks) {
+void draw() {
+    for (const auto &chunk : internal_state.chunks) {
         DrawModel(chunk.model, {(float)chunk.cx * CHUNK_SIZE, 0.0f, (float)chunk.cz * CHUNK_SIZE}, 1.0f, WHITE);
     }
+}
+
+void cleanup() {
+    for (const auto &chunk : internal_state.chunks) {
+        UnloadModel(chunk.model);
+    }
+    internal_state.chunks.clear();
+    UnloadTexture(internal_state.texture);
 }
 
 } // namespace Terrain
