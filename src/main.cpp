@@ -2,6 +2,7 @@
 #include "car.hpp"
 #include "landscape.hpp"
 #include "raylib.h"
+#include "sky.hpp"
 #include "terrain.hpp"
 
 #include <algorithm>
@@ -20,7 +21,7 @@ void draw_hud() {
 
 int32_t main() {
     InitWindow(800, 450, "silly roads");
-    SetTargetFPS(240);
+    SetTargetFPS(300);
 
     while (!WindowShouldClose()) {
         float dt = std::min(GetFrameTime(), 0.1f);
@@ -32,6 +33,7 @@ int32_t main() {
         ClearBackground(SKYBLUE);
         BeginMode3D(camera);
 
+        Sky::draw(camera);
         Terrain::draw();
         Landscape::draw();
         Car::update(dt);

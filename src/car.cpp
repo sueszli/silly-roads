@@ -8,9 +8,9 @@
 
 namespace {
 
-constexpr float PHYS_ACCEL = 50.0f;     // acceleration per second
+constexpr float PHYS_ACCEL = 20.0f;     // acceleration per second
 constexpr float PHYS_BRAKE = 160.0f;    // braking/reverse force
-constexpr float PHYS_MAX_SPEED = 40.0f; // max speed
+constexpr float PHYS_MAX_SPEED = 50.0f; // max speed
 constexpr float PHYS_DRAG = 0.98f;      // drag coefficient
 constexpr float PHYS_TURN_RATE = 2.0f;  // turn rate in rad/s
 
