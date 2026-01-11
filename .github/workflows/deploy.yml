@@ -31,6 +31,7 @@ jobs:
         run: |
           emcmake cmake -B build/wasm -S . -DPLATFORM=Web -DCMAKE_BUILD_TYPE=Release -DDISABLE_ASAN=ON -DDISABLE_UBSAN=ON -DCMAKE_EXECUTABLE_SUFFIX='.html' -DCMAKE_EXECUTABLE_SUFFIX_CXX='.html' -DCMAKE_EXE_LINKER_FLAGS='-sASYNCIFY -sUSE_GLFW=3 -sGL_ENABLE_GET_PROC_ADDRESS'
           cmake --build build/wasm
+          mv build/wasm/binary.html build/wasm/index.html
 
       - name: (4) setup pages
         uses: actions/configure-pages@v5
